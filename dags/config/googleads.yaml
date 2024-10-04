@@ -1,8 +1,7 @@
 s3:
     bucket: "XXXXXXX"
     reports_prefix_ga: "airflow/clients/arkestral/googleads/reports/"
-    match_tables_prefix_ga: "airflow/clients/arkestral/googleads/reports/match_tables/"
-
+    
 aws:
     region: "us-west-2"
     keyId: "XXXXXXX"
