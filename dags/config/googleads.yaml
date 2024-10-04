@@ -1,0 +1,32 @@
+s3:
+    bucket: "XXXXXXX"
+    reports_prefix_ga: "airflow/clients/arkestral/googleads/reports/"
+    match_tables_prefix_ga: "airflow/clients/arkestral/googleads/reports/match_tables/"
+
+aws:
+    region: "us-west-2"
+    keyId: "XXXXXXX"
+    secretAccessKey: "XXXXXXX"
+
+athena:
+    s3_staging_dir: "s3://XXXXX/athena/results/XXXXX/"
+
+googleads:
+    attWindow: 90
+    developerToken: "XXXXXXXXX"
+    clientId: "XXXXXXXXX"
+    clientSecret: "XXXXXXX"
+    personId: "XXXXXXXXXX"
+    userId: "XXXXXXXX"
+    mccId: "XXXXXXX"
+    tableName: "idm_googleads"
+    partKey: "userId"
+
+alerting:
+    emails: ["XXXXX@XXXXXXX.com","XXXXX@XXXXXXX.com"]
+
+dynamodb:
+    region: "us-west-2"
+    tableName: "idm_arkestral"
+    partKey: "userId"
+
