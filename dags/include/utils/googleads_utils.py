@@ -19,11 +19,8 @@ class extractReports:
         self.mccId = config['googleads']['mccId']
         self.attWindow = config['googleads']['attWindow']
     def hashString(self, string):
-            try:
-                response = hashlib.md5(string.encode('utf-8')).hexdigest()
-                return response
-            except Exception as e:
-                return e
+        response = hashlib.md5(string.encode('utf-8')).hexdigest()
+        return response
     def getToken(self):
         response = ddbUtils(self.config).getItem(self.tableName,self.partKey,self.userId)
         payload = response['Item']['payload']
