@@ -29,7 +29,8 @@ class extractReports:
         url = "https://oauth2.googleapis.com/token"
         r = self.r_session.post(url, json=headers)
         j = r.json()
-        j['refresh_token'] = refresh_token
+        # print(j)
+        # j['refresh_token'] = refresh_token
         obj = {}
         obj['token'] = j
         obj['personInfo'] = payload[self.personId]['personInfo']
@@ -38,209 +39,208 @@ class extractReports:
         token = j['access_token']
         headers={'Authorization': 'Bearer {}'.format(token), 'login-customer-id': '{}'.format(self.mccId), 'developer-token': '{}'.format(self.developerToken)}
         return headers
-    def getAdAccounts(self):
-        def doGetAdAccounts(**kwargs):
-            fcontents = kwargs.get('fcontents', '')
-            nextPageToken = kwargs.get('nextPageToken', '')
-            accountList = kwargs.get('accountList', [])
-            query = 'SELECT customer_client.client_customer, customer_client.level, customer_client.manager, customer_client.descriptive_name, customer_client.currency_code, customer_client.time_zone, customer_client.id FROM customer_client WHERE customer_client.level > 0'
-            url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(self.mccId)
-            fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:dims-accounts'
-            payload = {"query": query, "pageToken": nextPageToken}
-            r = self.r_session.post(url, json=payload)
-            response = r.json()
-            print(response)
-            if "results" in response:
-                for item in response['results']:
-                    isManager = item['customerClient']['manager']
-                    if isManager == False:
-                        accountList.append(item['customerClient']['id'])
-                    row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{item['customerClient']['id']}\t{url}\t{query}\t{json.dumps(item)}\n"
-                    fcontents += row
-                if "nextPageToken" in response:
-                    nextPageToken = response['nextPageToken']
-                    doGetAdAccounts(fcontents=fcontents, nextPageToken=nextPageToken, accountList=accountList)
-                else:
-                    print('writing to S3')
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
-                return accountList
-            else:
-                item = {}
-                item['msg'] = 'no data'
-                adAccountId = 'none'
-                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{adAccountId}\t{url}\t{query}\t{json.dumps(item)}\n"
+    def getAdAccounts(self, **kwargs):
+        fcontents = kwargs.get('fcontents', '')
+        nextPageToken = kwargs.get('nextPageToken', '')
+        accounts = kwargs.get('accounts', [])
+        query = 'SELECT customer_client.client_customer, customer_client.level, customer_client.manager, customer_client.descriptive_name, customer_client.currency_code, customer_client.time_zone, customer_client.id FROM customer_client WHERE customer_client.level > 0'
+        url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(self.mccId)
+        fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:dims-accounts'
+        payload = {"query": query, "pageToken": nextPageToken}
+        r = self.r_session.post(url, json=payload)
+        response = r.json()
+        if "results" in response:
+            for item in response['results']:
+                isManager = item['customerClient']['manager']
+                if isManager == False:
+                    accounts.append(item['customerClient']['id'])
+                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{item['customerClient']['id']}\t{url}\t{query}\t{json.dumps(item)}\n"
                 fcontents += row
-                s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
-        response = doGetAdAccounts()
-        return response
-    def getAdCampaigns(self, accountId):
-        def doGetAdCampaigns(accountId, **kwargs):
-            fcontents = kwargs.get('fcontents', '')
-            nextPageToken = kwargs.get('nextPageToken', '')
-            query = 'SELECT campaign.id, campaign.name, campaign.base_campaign, campaign.start_date, campaign.end_date, campaign.optimization_score, campaign.labels, campaign.campaign_budget, campaign.tracking_url_template, campaign.final_url_suffix, campaign.status FROM campaign'
-            url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
-            fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-campaigns'
-            payload = {"query": query, "pageToken": nextPageToken}
-            r = self.r_session.post(url, json=payload)
-            response = r.json()
-            print(response)
-            if "results" in response:
-                for item in response['results']:
-                    row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{item['campaign']['id']}\t{url}\t{query}\t{json.dumps(item)}\n"
-                    fcontents += row
-                if "nextPageToken" in response:
-                    nextPageToken = response['nextPageToken']
-                    doGetAdCampaigns(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
+            if "nextPageToken" in response:
+                nextPageToken = response['nextPageToken']
+                self.getAdAccounts(fcontents=fcontents, nextPageToken=nextPageToken, accounts=accounts)
             else:
-                item = {}
-                item['msg'] = 'no data'
-                adCampaignId = 'none'
-                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adCampaignId}\t{url}\t{query}\t{json.dumps(item)}\n"
+                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+        else:
+            item = {}
+            item['msg'] = 'no data'
+            adAccountId = 'none'
+            row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{adAccountId}\t{url}\t{query}\t{json.dumps(item)}\n"
+            fcontents += row
+            s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
+        return accounts
+    def getAdCampaigns(self, accountId, **kwargs):
+        fcontents = kwargs.get('fcontents', '')
+        nextPageToken = kwargs.get('nextPageToken', '')
+        campaigns = kwargs.get('campaigns', [])
+        query = 'SELECT campaign.id, campaign.name, campaign.base_campaign, campaign.start_date, campaign.end_date, campaign.optimization_score, campaign.labels, campaign.campaign_budget, campaign.tracking_url_template, campaign.final_url_suffix, campaign.status FROM campaign'
+        url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
+        fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-campaigns'
+        payload = {"query": query, "pageToken": nextPageToken}
+        r = self.r_session.post(url, json=payload)
+        response = r.json()
+        if "results" in response:
+            for item in response['results']:
+                campaigns.append(item['campaign']['id'])
+                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{item['campaign']['id']}\t{url}\t{query}\t{json.dumps(item)}\n"
                 fcontents += row
-                s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
-        doGetAdCampaigns(accountId)
-    def getAdGroups(self, accountId):
-        def doGetAdGroups(accountId, **kwargs):
-            fcontents = kwargs.get('fcontents', '')
-            nextPageToken = kwargs.get('nextPageToken', '')
-            query = 'SELECT ad_group.id, ad_group.name, ad_group.status FROM ad_group'
-            url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
-            fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-adgroups'
-            payload = {"query": query, "pageToken": nextPageToken}
-            r = self.r_session.post(url, json=payload)
-            response = r.json()
-            if "results" in response:
-                for item in response['results']:
-                    row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{item['adGroup']['id']}\t{url}\t{query}\t{json.dumps(item)}\n"
-                    fcontents += row
-                if "nextPageToken" in response:
-                    nextPageToken = response['nextPageToken']
-                    doGetAdGroups(self.userId, self.personId, accountId, fcontents=fcontents, nextPageToken=nextPageToken)
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/adgroups/{}'.format(fname))
+            if "nextPageToken" in response:
+                nextPageToken = response['nextPageToken']
+                self.getAdCampaigns(accountId, fcontents=fcontents, nextPageToken=nextPageToken, campaigns=campaigns)
             else:
-                item = {}
-                item['msg'] = 'no data'
-                adGroupId = 'none'
-                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adGroupId}\t{url}\t{query}\t{json.dumps(item)}\n"
+                s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
+        else:
+            item = {}
+            item['msg'] = 'no data'
+            adCampaignId = 'none'
+            row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adCampaignId}\t{url}\t{query}\t{json.dumps(item)}\n"
+            fcontents += row
+            s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
+        return campaigns
+    def getAdGroups(self, accountId, **kwargs):
+        fcontents = kwargs.get('fcontents', '')
+        nextPageToken = kwargs.get('nextPageToken', '')
+        adgroups = kwargs.get('campaigns', [])
+        query = 'SELECT ad_group.id, ad_group.name, ad_group.status FROM ad_group'
+        url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
+        fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-adgroups'
+        payload = {"query": query, "pageToken": nextPageToken}
+        r = self.r_session.post(url, json=payload)
+        response = r.json()
+        if "results" in response:
+            for item in response['results']:
+                adgroups.append(item['adGroup']['id'])
+                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{item['adGroup']['id']}\t{url}\t{query}\t{json.dumps(item)}\n"
                 fcontents += row
-                s3Utils(self.config).writeToS3(fcontents,'dims/adgroups/{}'.format(fname))
-        doGetAdGroups(accountId)
-    def getAds(self, accountId):
-        def doGetAds(accountId, **kwargs):
-            fcontents = kwargs.get('fcontents', '')
-            nextPageToken = kwargs.get('nextPageToken', '')
-            query = 'SELECT ad_group_ad.action_items, ad_group_ad.ad.added_by_google_ads, ad_group_ad.ad.app_ad.descriptions, ad_group_ad.ad.app_ad.headlines, ad_group_ad.ad.app_ad.html5_media_bundles, ad_group_ad.ad.app_ad.images, ad_group_ad.ad.app_ad.mandatory_ad_text, ad_group_ad.ad.app_ad.youtube_videos, ad_group_ad.ad.app_engagement_ad.descriptions, ad_group_ad.ad.app_engagement_ad.headlines, ad_group_ad.ad.app_engagement_ad.images, ad_group_ad.ad.app_engagement_ad.videos, ad_group_ad.ad.app_pre_registration_ad.descriptions, ad_group_ad.ad.app_pre_registration_ad.headlines, ad_group_ad.ad.app_pre_registration_ad.images, ad_group_ad.ad.app_pre_registration_ad.youtube_videos, ad_group_ad.ad.call_ad.business_name, ad_group_ad.ad.call_ad.call_tracked, ad_group_ad.ad.call_ad.conversion_action, ad_group_ad.ad.call_ad.conversion_reporting_state, ad_group_ad.ad.call_ad.country_code, ad_group_ad.ad.call_ad.description1, ad_group_ad.ad.call_ad.description2, ad_group_ad.ad.call_ad.disable_call_conversion, ad_group_ad.ad.call_ad.headline1, ad_group_ad.ad.call_ad.headline2, ad_group_ad.ad.call_ad.path1, ad_group_ad.ad.call_ad.path2, ad_group_ad.ad.call_ad.phone_number, ad_group_ad.ad.call_ad.phone_number_verification_url, ad_group_ad.ad.demand_gen_carousel_ad.business_name, ad_group_ad.ad.demand_gen_carousel_ad.call_to_action_text, ad_group_ad.ad.demand_gen_carousel_ad.carousel_cards, ad_group_ad.ad.demand_gen_carousel_ad.description, ad_group_ad.ad.demand_gen_carousel_ad.headline, ad_group_ad.ad.demand_gen_carousel_ad.logo_image, ad_group_ad.ad.demand_gen_multi_asset_ad.business_name, ad_group_ad.ad.demand_gen_multi_asset_ad.call_to_action_text, ad_group_ad.ad.demand_gen_multi_asset_ad.descriptions, ad_group_ad.ad.demand_gen_multi_asset_ad.headlines, ad_group_ad.ad.demand_gen_multi_asset_ad.lead_form_only, ad_group_ad.ad.demand_gen_multi_asset_ad.logo_images, ad_group_ad.ad.demand_gen_multi_asset_ad.marketing_images, ad_group_ad.ad.demand_gen_multi_asset_ad.portrait_marketing_images, ad_group_ad.ad.demand_gen_multi_asset_ad.square_marketing_images, ad_group_ad.ad.demand_gen_product_ad.breadcrumb1, ad_group_ad.ad.demand_gen_product_ad.breadcrumb2, ad_group_ad.ad.demand_gen_product_ad.business_name, ad_group_ad.ad.demand_gen_product_ad.call_to_action, ad_group_ad.ad.demand_gen_product_ad.description, ad_group_ad.ad.demand_gen_product_ad.headline, ad_group_ad.ad.demand_gen_product_ad.logo_image, ad_group_ad.ad.demand_gen_video_responsive_ad.breadcrumb1, ad_group_ad.ad.demand_gen_video_responsive_ad.breadcrumb2, ad_group_ad.ad.demand_gen_video_responsive_ad.business_name, ad_group_ad.ad.demand_gen_video_responsive_ad.call_to_actions, ad_group_ad.ad.demand_gen_video_responsive_ad.descriptions, ad_group_ad.ad.demand_gen_video_responsive_ad.headlines, ad_group_ad.ad.demand_gen_video_responsive_ad.logo_images, ad_group_ad.ad.demand_gen_video_responsive_ad.long_headlines, ad_group_ad.ad.demand_gen_video_responsive_ad.videos, ad_group_ad.ad.device_preference, ad_group_ad.ad.display_upload_ad.display_upload_product_type, ad_group_ad.ad.display_upload_ad.media_bundle, ad_group_ad.ad.display_url, ad_group_ad.ad.expanded_dynamic_search_ad.description, ad_group_ad.ad.expanded_dynamic_search_ad.description2, ad_group_ad.ad.expanded_text_ad.description, ad_group_ad.ad.expanded_text_ad.description2, ad_group_ad.ad.expanded_text_ad.headline_part1, ad_group_ad.ad.expanded_text_ad.headline_part2, ad_group_ad.ad.expanded_text_ad.headline_part3, ad_group_ad.ad.expanded_text_ad.path1, ad_group_ad.ad.expanded_text_ad.path2, ad_group_ad.ad.final_app_urls, ad_group_ad.ad.final_mobile_urls, ad_group_ad.ad.final_url_suffix, ad_group_ad.ad.final_urls, ad_group_ad.ad.hotel_ad, ad_group_ad.ad.id, ad_group_ad.ad.image_ad.image_asset.asset, ad_group_ad.ad.image_ad.image_url, ad_group_ad.ad.image_ad.mime_type, ad_group_ad.ad.image_ad.name, ad_group_ad.ad.image_ad.pixel_width, ad_group_ad.ad.image_ad.pixel_height, ad_group_ad.ad.image_ad.preview_image_url, ad_group_ad.ad.image_ad.preview_pixel_height, ad_group_ad.ad.image_ad.preview_pixel_width, ad_group_ad.ad.legacy_app_install_ad, ad_group_ad.ad.legacy_responsive_display_ad.accent_color, ad_group_ad.ad.legacy_responsive_display_ad.allow_flexible_color, ad_group_ad.ad.legacy_responsive_display_ad.business_name, ad_group_ad.ad.legacy_responsive_display_ad.call_to_action_text, ad_group_ad.ad.legacy_responsive_display_ad.description, ad_group_ad.ad.legacy_responsive_display_ad.format_setting, ad_group_ad.ad.legacy_responsive_display_ad.logo_image, ad_group_ad.ad.legacy_responsive_display_ad.long_headline, ad_group_ad.ad.legacy_responsive_display_ad.main_color, ad_group_ad.ad.legacy_responsive_display_ad.marketing_image, ad_group_ad.ad.legacy_responsive_display_ad.price_prefix, ad_group_ad.ad.legacy_responsive_display_ad.promo_text, ad_group_ad.ad.legacy_responsive_display_ad.short_headline, ad_group_ad.ad.legacy_responsive_display_ad.square_logo_image, ad_group_ad.ad.legacy_responsive_display_ad.square_marketing_image, ad_group_ad.ad.local_ad.call_to_actions, ad_group_ad.ad.local_ad.descriptions, ad_group_ad.ad.local_ad.headlines, ad_group_ad.ad.local_ad.logo_images, ad_group_ad.ad.local_ad.marketing_images, ad_group_ad.ad.local_ad.path1, ad_group_ad.ad.local_ad.path2, ad_group_ad.ad.local_ad.videos, ad_group_ad.ad.name, ad_group_ad.ad.resource_name, ad_group_ad.ad.responsive_display_ad.accent_color, ad_group_ad.ad.responsive_display_ad.allow_flexible_color, ad_group_ad.ad.responsive_display_ad.business_name, ad_group_ad.ad.responsive_display_ad.call_to_action_text, ad_group_ad.ad.responsive_display_ad.control_spec.enable_asset_enhancements, ad_group_ad.ad.responsive_display_ad.control_spec.enable_autogen_video, ad_group_ad.ad.responsive_display_ad.descriptions, ad_group_ad.ad.responsive_display_ad.format_setting, ad_group_ad.ad.responsive_display_ad.headlines, ad_group_ad.ad.responsive_display_ad.logo_images, ad_group_ad.ad.responsive_display_ad.long_headline, ad_group_ad.ad.responsive_display_ad.main_color, ad_group_ad.ad.responsive_display_ad.marketing_images, ad_group_ad.ad.responsive_display_ad.price_prefix, ad_group_ad.ad.responsive_display_ad.promo_text, ad_group_ad.ad.responsive_display_ad.square_logo_images, ad_group_ad.ad.responsive_display_ad.square_marketing_images, ad_group_ad.ad.responsive_display_ad.youtube_videos, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2, ad_group_ad.ad.shopping_comparison_listing_ad.headline, ad_group_ad.ad.shopping_product_ad, ad_group_ad.ad.shopping_smart_ad, ad_group_ad.ad.smart_campaign_ad.descriptions, ad_group_ad.ad.smart_campaign_ad.headlines, ad_group_ad.ad.system_managed_resource_source, ad_group_ad.ad.text_ad.description1, ad_group_ad.ad.text_ad.description2, ad_group_ad.ad.text_ad.headline, ad_group_ad.ad.tracking_url_template, ad_group_ad.ad.travel_ad, ad_group_ad.ad.type, ad_group_ad.ad.url_collections, ad_group_ad.ad.url_custom_parameters, ad_group_ad.ad.video_ad.bumper.action_button_label, ad_group_ad.ad.video_ad.bumper.action_headline, ad_group_ad.ad.video_ad.bumper.companion_banner.asset, ad_group_ad.ad.video_ad.in_feed.description1, ad_group_ad.ad.video_ad.in_feed.description2, ad_group_ad.ad.video_ad.in_feed.headline, ad_group_ad.ad.video_ad.in_feed.thumbnail, ad_group_ad.ad.video_ad.in_stream.action_button_label, ad_group_ad.ad.video_ad.in_stream.action_headline, ad_group_ad.ad.video_ad.in_stream.companion_banner.asset, ad_group_ad.ad.video_ad.non_skippable.action_button_label, ad_group_ad.ad.video_ad.non_skippable.action_headline, ad_group_ad.ad.video_ad.non_skippable.companion_banner.asset, ad_group_ad.ad.video_ad.out_stream.description, ad_group_ad.ad.video_ad.out_stream.headline, ad_group_ad.ad.video_ad.video.asset, ad_group_ad.ad.video_responsive_ad.breadcrumb1, ad_group_ad.ad.video_responsive_ad.breadcrumb2, ad_group_ad.ad.video_responsive_ad.call_to_actions, ad_group_ad.ad.video_responsive_ad.companion_banners, ad_group_ad.ad.video_responsive_ad.descriptions, ad_group_ad.ad.video_responsive_ad.headlines, ad_group_ad.ad.video_responsive_ad.long_headlines, ad_group_ad.ad.video_responsive_ad.videos, ad_group_ad.ad_group, ad_group_ad.ad_strength, ad_group_ad.labels, ad_group_ad.policy_summary.approval_status, ad_group_ad.policy_summary.policy_topic_entries, ad_group_ad.policy_summary.review_status, ad_group_ad.primary_status, ad_group_ad.primary_status_reasons, ad_group_ad.resource_name, ad_group_ad.status FROM ad_group_ad'
-            url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
-            fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-ads'
-            payload = {"query": query, "pageToken": nextPageToken}
-            r = self.r_session.post(url, json=payload)
-            response = r.json()
-            if "results" in response:
-                for item in response['results']:
-                    resourceId = item['adGroupAd']['resourceName'].split('/')[-1]
-                    row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{resourceId}\t{url}\t{query}\t{json.dumps(item)}\n"
-                    fcontents += row
-                if "nextPageToken" in response:
-                    nextPageToken = response['nextPageToken']
-                    doGetAds(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
+            if "nextPageToken" in response:
+                nextPageToken = response['nextPageToken']
+                self.getAdGroups(accountId, fcontents=fcontents, nextPageToken=nextPageToken, adgroups=adgroups)
             else:
-                item = {}
-                item['msg'] = 'no data'
-                adId = 'none'
-                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adId}\t{url}\t{query}\t{json.dumps(item)}\n"
+                s3Utils(self.config).writeToS3(fcontents, 'dims/adgroups/{}'.format(fname))
+        else:
+            item = {}
+            item['msg'] = 'no data'
+            adGroupId = 'none'
+            row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adGroupId}\t{url}\t{query}\t{json.dumps(item)}\n"
+            fcontents += row
+            s3Utils(self.config).writeToS3(fcontents,'dims/adgroups/{}'.format(fname))
+        return adgroups
+    def getAds(self, accountId, **kwargs):
+        fcontents = kwargs.get('fcontents', '')
+        nextPageToken = kwargs.get('nextPageToken', '')
+        ads = kwargs.get('ads', [])
+        query = 'SELECT ad_group_ad.action_items, ad_group_ad.ad.added_by_google_ads, ad_group_ad.ad.app_ad.descriptions, ad_group_ad.ad.app_ad.headlines, ad_group_ad.ad.app_ad.html5_media_bundles, ad_group_ad.ad.app_ad.images, ad_group_ad.ad.app_ad.mandatory_ad_text, ad_group_ad.ad.app_ad.youtube_videos, ad_group_ad.ad.app_engagement_ad.descriptions, ad_group_ad.ad.app_engagement_ad.headlines, ad_group_ad.ad.app_engagement_ad.images, ad_group_ad.ad.app_engagement_ad.videos, ad_group_ad.ad.app_pre_registration_ad.descriptions, ad_group_ad.ad.app_pre_registration_ad.headlines, ad_group_ad.ad.app_pre_registration_ad.images, ad_group_ad.ad.app_pre_registration_ad.youtube_videos, ad_group_ad.ad.call_ad.business_name, ad_group_ad.ad.call_ad.call_tracked, ad_group_ad.ad.call_ad.conversion_action, ad_group_ad.ad.call_ad.conversion_reporting_state, ad_group_ad.ad.call_ad.country_code, ad_group_ad.ad.call_ad.description1, ad_group_ad.ad.call_ad.description2, ad_group_ad.ad.call_ad.disable_call_conversion, ad_group_ad.ad.call_ad.headline1, ad_group_ad.ad.call_ad.headline2, ad_group_ad.ad.call_ad.path1, ad_group_ad.ad.call_ad.path2, ad_group_ad.ad.call_ad.phone_number, ad_group_ad.ad.call_ad.phone_number_verification_url, ad_group_ad.ad.demand_gen_carousel_ad.business_name, ad_group_ad.ad.demand_gen_carousel_ad.call_to_action_text, ad_group_ad.ad.demand_gen_carousel_ad.carousel_cards, ad_group_ad.ad.demand_gen_carousel_ad.description, ad_group_ad.ad.demand_gen_carousel_ad.headline, ad_group_ad.ad.demand_gen_carousel_ad.logo_image, ad_group_ad.ad.demand_gen_multi_asset_ad.business_name, ad_group_ad.ad.demand_gen_multi_asset_ad.call_to_action_text, ad_group_ad.ad.demand_gen_multi_asset_ad.descriptions, ad_group_ad.ad.demand_gen_multi_asset_ad.headlines, ad_group_ad.ad.demand_gen_multi_asset_ad.lead_form_only, ad_group_ad.ad.demand_gen_multi_asset_ad.logo_images, ad_group_ad.ad.demand_gen_multi_asset_ad.marketing_images, ad_group_ad.ad.demand_gen_multi_asset_ad.portrait_marketing_images, ad_group_ad.ad.demand_gen_multi_asset_ad.square_marketing_images, ad_group_ad.ad.demand_gen_product_ad.breadcrumb1, ad_group_ad.ad.demand_gen_product_ad.breadcrumb2, ad_group_ad.ad.demand_gen_product_ad.business_name, ad_group_ad.ad.demand_gen_product_ad.call_to_action, ad_group_ad.ad.demand_gen_product_ad.description, ad_group_ad.ad.demand_gen_product_ad.headline, ad_group_ad.ad.demand_gen_product_ad.logo_image, ad_group_ad.ad.demand_gen_video_responsive_ad.breadcrumb1, ad_group_ad.ad.demand_gen_video_responsive_ad.breadcrumb2, ad_group_ad.ad.demand_gen_video_responsive_ad.business_name, ad_group_ad.ad.demand_gen_video_responsive_ad.call_to_actions, ad_group_ad.ad.demand_gen_video_responsive_ad.descriptions, ad_group_ad.ad.demand_gen_video_responsive_ad.headlines, ad_group_ad.ad.demand_gen_video_responsive_ad.logo_images, ad_group_ad.ad.demand_gen_video_responsive_ad.long_headlines, ad_group_ad.ad.demand_gen_video_responsive_ad.videos, ad_group_ad.ad.device_preference, ad_group_ad.ad.display_upload_ad.display_upload_product_type, ad_group_ad.ad.display_upload_ad.media_bundle, ad_group_ad.ad.display_url, ad_group_ad.ad.expanded_dynamic_search_ad.description, ad_group_ad.ad.expanded_dynamic_search_ad.description2, ad_group_ad.ad.expanded_text_ad.description, ad_group_ad.ad.expanded_text_ad.description2, ad_group_ad.ad.expanded_text_ad.headline_part1, ad_group_ad.ad.expanded_text_ad.headline_part2, ad_group_ad.ad.expanded_text_ad.headline_part3, ad_group_ad.ad.expanded_text_ad.path1, ad_group_ad.ad.expanded_text_ad.path2, ad_group_ad.ad.final_app_urls, ad_group_ad.ad.final_mobile_urls, ad_group_ad.ad.final_url_suffix, ad_group_ad.ad.final_urls, ad_group_ad.ad.hotel_ad, ad_group_ad.ad.id, ad_group_ad.ad.image_ad.image_asset.asset, ad_group_ad.ad.image_ad.image_url, ad_group_ad.ad.image_ad.mime_type, ad_group_ad.ad.image_ad.name, ad_group_ad.ad.image_ad.pixel_width, ad_group_ad.ad.image_ad.pixel_height, ad_group_ad.ad.image_ad.preview_image_url, ad_group_ad.ad.image_ad.preview_pixel_height, ad_group_ad.ad.image_ad.preview_pixel_width, ad_group_ad.ad.legacy_app_install_ad, ad_group_ad.ad.legacy_responsive_display_ad.accent_color, ad_group_ad.ad.legacy_responsive_display_ad.allow_flexible_color, ad_group_ad.ad.legacy_responsive_display_ad.business_name, ad_group_ad.ad.legacy_responsive_display_ad.call_to_action_text, ad_group_ad.ad.legacy_responsive_display_ad.description, ad_group_ad.ad.legacy_responsive_display_ad.format_setting, ad_group_ad.ad.legacy_responsive_display_ad.logo_image, ad_group_ad.ad.legacy_responsive_display_ad.long_headline, ad_group_ad.ad.legacy_responsive_display_ad.main_color, ad_group_ad.ad.legacy_responsive_display_ad.marketing_image, ad_group_ad.ad.legacy_responsive_display_ad.price_prefix, ad_group_ad.ad.legacy_responsive_display_ad.promo_text, ad_group_ad.ad.legacy_responsive_display_ad.short_headline, ad_group_ad.ad.legacy_responsive_display_ad.square_logo_image, ad_group_ad.ad.legacy_responsive_display_ad.square_marketing_image, ad_group_ad.ad.local_ad.call_to_actions, ad_group_ad.ad.local_ad.descriptions, ad_group_ad.ad.local_ad.headlines, ad_group_ad.ad.local_ad.logo_images, ad_group_ad.ad.local_ad.marketing_images, ad_group_ad.ad.local_ad.path1, ad_group_ad.ad.local_ad.path2, ad_group_ad.ad.local_ad.videos, ad_group_ad.ad.name, ad_group_ad.ad.resource_name, ad_group_ad.ad.responsive_display_ad.accent_color, ad_group_ad.ad.responsive_display_ad.allow_flexible_color, ad_group_ad.ad.responsive_display_ad.business_name, ad_group_ad.ad.responsive_display_ad.call_to_action_text, ad_group_ad.ad.responsive_display_ad.control_spec.enable_asset_enhancements, ad_group_ad.ad.responsive_display_ad.control_spec.enable_autogen_video, ad_group_ad.ad.responsive_display_ad.descriptions, ad_group_ad.ad.responsive_display_ad.format_setting, ad_group_ad.ad.responsive_display_ad.headlines, ad_group_ad.ad.responsive_display_ad.logo_images, ad_group_ad.ad.responsive_display_ad.long_headline, ad_group_ad.ad.responsive_display_ad.main_color, ad_group_ad.ad.responsive_display_ad.marketing_images, ad_group_ad.ad.responsive_display_ad.price_prefix, ad_group_ad.ad.responsive_display_ad.promo_text, ad_group_ad.ad.responsive_display_ad.square_logo_images, ad_group_ad.ad.responsive_display_ad.square_marketing_images, ad_group_ad.ad.responsive_display_ad.youtube_videos, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2, ad_group_ad.ad.shopping_comparison_listing_ad.headline, ad_group_ad.ad.shopping_product_ad, ad_group_ad.ad.shopping_smart_ad, ad_group_ad.ad.smart_campaign_ad.descriptions, ad_group_ad.ad.smart_campaign_ad.headlines, ad_group_ad.ad.system_managed_resource_source, ad_group_ad.ad.text_ad.description1, ad_group_ad.ad.text_ad.description2, ad_group_ad.ad.text_ad.headline, ad_group_ad.ad.tracking_url_template, ad_group_ad.ad.travel_ad, ad_group_ad.ad.type, ad_group_ad.ad.url_collections, ad_group_ad.ad.url_custom_parameters, ad_group_ad.ad.video_ad.bumper.action_button_label, ad_group_ad.ad.video_ad.bumper.action_headline, ad_group_ad.ad.video_ad.bumper.companion_banner.asset, ad_group_ad.ad.video_ad.in_feed.description1, ad_group_ad.ad.video_ad.in_feed.description2, ad_group_ad.ad.video_ad.in_feed.headline, ad_group_ad.ad.video_ad.in_feed.thumbnail, ad_group_ad.ad.video_ad.in_stream.action_button_label, ad_group_ad.ad.video_ad.in_stream.action_headline, ad_group_ad.ad.video_ad.in_stream.companion_banner.asset, ad_group_ad.ad.video_ad.non_skippable.action_button_label, ad_group_ad.ad.video_ad.non_skippable.action_headline, ad_group_ad.ad.video_ad.non_skippable.companion_banner.asset, ad_group_ad.ad.video_ad.out_stream.description, ad_group_ad.ad.video_ad.out_stream.headline, ad_group_ad.ad.video_ad.video.asset, ad_group_ad.ad.video_responsive_ad.breadcrumb1, ad_group_ad.ad.video_responsive_ad.breadcrumb2, ad_group_ad.ad.video_responsive_ad.call_to_actions, ad_group_ad.ad.video_responsive_ad.companion_banners, ad_group_ad.ad.video_responsive_ad.descriptions, ad_group_ad.ad.video_responsive_ad.headlines, ad_group_ad.ad.video_responsive_ad.long_headlines, ad_group_ad.ad.video_responsive_ad.videos, ad_group_ad.ad_group, ad_group_ad.ad_strength, ad_group_ad.labels, ad_group_ad.policy_summary.approval_status, ad_group_ad.policy_summary.policy_topic_entries, ad_group_ad.policy_summary.review_status, ad_group_ad.primary_status, ad_group_ad.primary_status_reasons, ad_group_ad.resource_name, ad_group_ad.status FROM ad_group_ad'
+        url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
+        fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-ads'
+        payload = {"query": query, "pageToken": nextPageToken}
+        r = self.r_session.post(url, json=payload)
+        response = r.json()
+        if "results" in response:
+            for item in response['results']:
+                resourceId = item['adGroupAd']['resourceName'].split('/')[-1]
+                ads.append(resourceId)
+                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{resourceId}\t{url}\t{query}\t{json.dumps(item)}\n"
                 fcontents += row
-                s3Utils(self.config).writeToS3(fcontents,'dims/ads/{}'.format(fname))
-        doGetAds(accountId)
-    def getAdLabels(self, accountId):
-        def doGetAdLabels(accountId, **kwargs):
-            fcontents = kwargs.get('fcontents', '')
-            nextPageToken = kwargs.get('nextPageToken', '')
-            query = 'SELECT ad_group_ad.ad.id, label.resource_name, label.name FROM ad_group_ad_label'
-            url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
-            fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-adlabels'
-            payload = {"query": query, "pageToken": nextPageToken}
-            r = self.r_session.post(url, json=payload)
-            response = r.json()
-            if "results" in response:
-                for item in response['results']:
-                    resourceId = item['adGroupAdLabel']['resourceName'].split('/')[-1]
-                    row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{resourceId}\t{url}\t{query}\t{json.dumps(item)}\n"
-                    fcontents += row
-                if "nextPageToken" in response:
-                    nextPageToken = response['nextPageToken']
-                    doGetAdLabels(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/adlabels/{}'.format(fname))
+            if "nextPageToken" in response:
+                nextPageToken = response['nextPageToken']
+                self.getAds(accountId, fcontents=fcontents, nextPageToken=nextPageToken, ads=ads)
             else:
-                item = {}
-                item['msg'] = 'no data'
-                adId = 'none'
-                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adId}\t{url}\t{query}\t{json.dumps(item)}\n"
+                s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
+        else:
+            item = {}
+            item['msg'] = 'no data'
+            adId = 'none'
+            row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adId}\t{url}\t{query}\t{json.dumps(item)}\n"
+            fcontents += row
+            s3Utils(self.config).writeToS3(fcontents,'dims/ads/{}'.format(fname))
+        return ads
+    def getAdLabels(self, accountId, **kwargs):
+        fcontents = kwargs.get('fcontents', '')
+        nextPageToken = kwargs.get('nextPageToken', '')
+        adLabels = kwargs.get('adLabels', [])
+        query = 'SELECT ad_group_ad.ad.id, label.resource_name, label.name FROM ad_group_ad_label'
+        url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
+        fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-adlabels'
+        payload = {"query": query, "pageToken": nextPageToken}
+        r = self.r_session.post(url, json=payload)
+        response = r.json()
+        if "results" in response:
+            for item in response['results']:
+                resourceId = item['adGroupAdLabel']['resourceName'].split('/')[-1]
+                adLabels.append(resourceId)
+                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{resourceId}\t{url}\t{query}\t{json.dumps(item)}\n"
                 fcontents += row
+            if "nextPageToken" in response:
+                nextPageToken = response['nextPageToken']
+                self.getAdLabels(accountId, fcontents=fcontents, nextPageToken=nextPageToken, adLabels=adLabels)
+            else:
                 s3Utils(self.config).writeToS3(fcontents, 'dims/adlabels/{}'.format(fname))
-        doGetAdLabels(accountId)
-    def getKws(self, accountId):
-        def doGetKws(accountId, **kwargs):
-            fcontents = kwargs.get('fcontents', '')
-            nextPageToken = kwargs.get('nextPageToken', '')
-            query = 'SELECT ad_group_criterion.criterion_id, ad_group_criterion.approval_status, ad_group_criterion.keyword.text, ad_group_criterion.final_mobile_urls, ad_group_criterion.final_url_suffix, ad_group_criterion.final_urls, ad_group_criterion.negative, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.system_serving_status, ad_group_criterion.tracking_url_template, ad_group_criterion.url_custom_parameters, ad_group_criterion.topic.topic_constant FROM ad_group_criterion'
-            url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
-            fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-kws'
-            payload = {"query": query, "pageToken": nextPageToken}
-            r = self.r_session.post(url, json=payload)
-            response = r.json()
-            if "results" in response:
-                for item in response['results']:
-                    resourceId = item['adGroupCriterion']['resourceName'].split('/')[-1]
-                    row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{resourceId}\t{url}\t{query}\t{json.dumps(item)}\n"
-                    fcontents += row
-                if "nextPageToken" in response:
-                    nextPageToken = response['nextPageToken']
-                    doGetKws(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/kws/{}'.format(fname))
-            else:
-                item = {}
-                item['msg'] = 'no data'
-                kwId = 'none'
-                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{kwId}\t{url}\t{query}\t{json.dumps(item)}\n"
+        else:
+            item = {}
+            item['msg'] = 'no data'
+            adId = 'none'
+            row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adId}\t{url}\t{query}\t{json.dumps(item)}\n"
+            fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/adlabels/{}'.format(fname))
+        return adLabels
+    def getKws(self, accountId, **kwargs):
+        fcontents = kwargs.get('fcontents', '')
+        nextPageToken = kwargs.get('nextPageToken', '')
+        kws = kwargs.get('kws', [])
+        query = 'SELECT ad_group_criterion.criterion_id, ad_group_criterion.approval_status, ad_group_criterion.keyword.text, ad_group_criterion.final_mobile_urls, ad_group_criterion.final_url_suffix, ad_group_criterion.final_urls, ad_group_criterion.negative, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.system_serving_status, ad_group_criterion.tracking_url_template, ad_group_criterion.url_custom_parameters, ad_group_criterion.topic.topic_constant FROM ad_group_criterion'
+        url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
+        fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-kws'
+        payload = {"query": query, "pageToken": nextPageToken}
+        r = self.r_session.post(url, json=payload)
+        response = r.json()
+        if "results" in response:
+            for item in response['results']:
+                resourceId = item['adGroupCriterion']['resourceName'].split('/')[-1]
+                kws.append(resourceId)
+                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{resourceId}\t{url}\t{query}\t{json.dumps(item)}\n"
                 fcontents += row
+            if "nextPageToken" in response:
+                nextPageToken = response['nextPageToken']
+                self.getKws(accountId, fcontents=fcontents, nextPageToken=nextPageToken, kws=kws)
+            else:
                 s3Utils(self.config).writeToS3(fcontents, 'dims/kws/{}'.format(fname))
-        doGetKws(accountId)
-    def getKwLabels(self, accountId):
-        def doGetKwLabels(accountId, **kwargs):
-            fcontents = kwargs.get('fcontents', '')
-            nextPageToken = kwargs.get('nextPageToken', '')
-            query = 'SELECT ad_group_criterion.criterion_id, label.resource_name, label.name FROM ad_group_criterion_label'
-            url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
-            fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-kwlabels'
-            payload = {"query": query, "pageToken": nextPageToken}
-            r = self.r_session.post(url, json=payload)
-            response = r.json()
-            print(response)
-            if "results" in response:
-                for item in response['results']:
-                    resourceId = item['adGroupCriterionLabel']['resourceName'].split('/')[-1]
-                    row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{resourceId}\t{url}\t{query}\t{json.dumps(item)}\n"
-                    fcontents += row
-                if "nextPageToken" in response:
-                    nextPageToken = response['nextPageToken']
-                    doGetKwLabels(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/kwlabels/{}'.format(fname))
-            else:
-                item = {}
-                item['msg'] = 'no data'
-                kwId = 'none'
-                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{kwId}\t{url}\t{query}\t{json.dumps(item)}\n"
+        else:
+            item = {}
+            item['msg'] = 'no data'
+            kwId = 'none'
+            row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{kwId}\t{url}\t{query}\t{json.dumps(item)}\n"
+            fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/kws/{}'.format(fname))
+        return kws
+    def getKwLabels(self, accountId, **kwargs):
+        fcontents = kwargs.get('fcontents', '')
+        nextPageToken = kwargs.get('nextPageToken', '')
+        kwLabels = kwargs.get('kwLabels', [])
+        query = 'SELECT ad_group_criterion.criterion_id, label.resource_name, label.name FROM ad_group_criterion_label'
+        url = 'https://googleads.googleapis.com/v17/customers/{}/googleAds:search'.format(accountId)
+        fname = f'{self.hashString(self.userId)}:{self.hashString(self.personId)}:{accountId}:dims-kwlabels'
+        payload = {"query": query, "pageToken": nextPageToken}
+        r = self.r_session.post(url, json=payload)
+        response = r.json()
+        if "results" in response:
+            for item in response['results']:
+                resourceId = item['adGroupCriterionLabel']['resourceName'].split('/')[-1]
+                kwLabels.append(resourceId)
+                row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{resourceId}\t{url}\t{query}\t{json.dumps(item)}\n"
                 fcontents += row
-                s3Utils(self.config).writeToS3(fcontents,'dims/kwlabels/{}'.format(fname))
-        doGetKwLabels(accountId)
+            if "nextPageToken" in response:
+                nextPageToken = response['nextPageToken']
+                self.getKwLabels(accountId, fcontents=fcontents, nextPageToken=nextPageToken, kwLabels=kwLabels)
+            else:
+                s3Utils(self.config).writeToS3(fcontents, 'dims/kwlabels/{}'.format(fname))
+        else:
+            item = {}
+            item['msg'] = 'no data'
+            kwId = 'none'
+            row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{kwId}\t{url}\t{query}\t{json.dumps(item)}\n"
+            fcontents += row
+            s3Utils(self.config).writeToS3(fcontents,'dims/kwlabels/{}'.format(fname))
+        return kwLabels
     def getAdPerformanceReport(self, accountId):
         def doGetAdPerformanceReport(accountId, startDate, endDate, **kwargs):
             fcontents = kwargs.get('fcontents', '')
@@ -258,7 +258,7 @@ class extractReports:
                     fcontents += row
                 if "nextPageToken" in response:
                     nextPageToken = response['nextPageToken']
-                    doGetAdPerformanceReport(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
+                    self.getAdPerformanceReport(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
                 else:
                     s3Utils(self.config).writeToS3(fcontents, 'facts/ads/{}'.format(fname))
             else:
@@ -291,7 +291,7 @@ class extractReports:
                     fcontents += row
                 if "nextPageToken" in response:
                     nextPageToken = response['nextPageToken']
-                    doGetKwPerformanceReport(self.userId, personId, accountId, fcontents=fcontents, nextPageToken=nextPageToken)
+                    doGetKwPerformanceReport(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
                 else:
                     s3Utils(self.config).writeToS3(fcontents, 'facts/kws/{}'.format(fname))
             else:
@@ -323,7 +323,7 @@ class extractReports:
                     fcontents += row
                 if "nextPageToken" in response:
                     nextPageToken = response['nextPageToken']
-                    doGetClickPerformanceReport(self.userId, personId, accountId, fcontents=fcontents, nextPageToken=nextPageToken)
+                    doGetClickPerformanceReport(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
                 else:
                     s3Utils(self.config).writeToS3(fcontents, 'facts/clks/{}'.format(fname))
             else:
@@ -356,7 +356,7 @@ class extractReports:
                     fcontents += row
                 if "nextPageToken" in response:
                     nextPageToken = response['nextPageToken']
-                    doGetChangeEventReport(self.userId, personId, accountId, fcontents=fcontents, nextPageToken=nextPageToken)
+                    doGetChangeEventReport(accountId, fcontents=fcontents, nextPageToken=nextPageToken)
                 else:
                     s3Utils(self.config).writeToS3(fcontents, 'chevs/{}'.format(fname))
             else:

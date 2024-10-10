@@ -1,0 +1,31 @@
+s3:
+    bucket: "arkestral"
+    prefix: "airflow/clients/XXXXXXXXXXX/facebook/reports/"
+    
+aws:
+    region: "us-west-2"
+    keyId: "XXXXXXXXXXXXXXXXX"
+    secretAccessKey: "XXXXXXXXXXXXXX"
+
+athena:
+    s3_staging_dir: "s3://XXXXXXXX/athena/results/brian/"
+
+facebook:
+    attWindow: 90
+    clientSecret: "XXXXXXXXXXXXXX"
+    clientId: "XXXXXXXXXXXX"
+    personId: "XXXXXXXXXXXX"
+    userId: "XXXXXXXXXXXX"
+    tokenUrl: "https://graph.facebook.com/oauth/access_token"
+    tableName: "idm_facebook"
+    partKey: "userId"
+    scopes: ["ads_read", "ads_management", "business_management", "email", "public_profile"]
+
+alerting:
+    emails: ["XXXXXXXXXXXX","XXXXXXXXXXXXX"]
+
+dynamodb:
+    region: "us-west-2"
+    tableName: "idm_arkestral"
+    partKey: "userId"
+

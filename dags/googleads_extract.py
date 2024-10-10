@@ -37,6 +37,10 @@ extractReports = googleads_utils.extractReports(config, r_session)
 @dag(schedule_interval="@hourly", catchup=False, default_args=default_args)
 # @dag(schedule_interval=None, catchup=False, default_args=default_args)
 def googleads_extract():
+    @task(task_id="getToken", retries=0)
+    def getToken():
+        response = googleads_utils.extractReports(config, r_session).getToken()
+        return response
     @task(task_id="getAdAccounts", retries=0)
     def getAdAccounts():
         response = extractReports.getAdAccounts()
@@ -82,6 +86,7 @@ def googleads_extract():
         response = extractReports.getChangeEventReport(accountId)
         return response
 
+    # token = getToken()
     adAccounts = getAdAccounts()
     adCampaigns = getAdCampaigns.expand(accountId=adAccounts)
     adGroups = getAdGroups.expand(accountId=adAccounts)
