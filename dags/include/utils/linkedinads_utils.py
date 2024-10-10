@@ -24,16 +24,16 @@ class extractReports:
     def getToken(self):
         response = ddbUtils(self.config).getItem(self.tableName,self.partKey,self.userId)
         payload = response['Item']['payload']
-        print(payload)
+        # print(payload)
         # sys.exit()
         refresh_token = payload[self.personId]['token']['refresh_token']
         print(refresh_token)
         headers = {"client_id": self.clientId, "client_secret": self.clientSecret, "Content-type": "application/w-www-form-urlencoded", "grant_type": "refresh_token", "refresh_token": refresh_token}
-        print(headers)
+        # print(headers)
         url = "https://www.linkedin.com/oauth/v2/accessToken"
         r = self.r_session.post(url, data=headers)
         j = r.json()
-        # print(j)
+        print(j)
         # j['refresh_token'] = refresh_token
         obj = {}
         obj['token'] = j
@@ -43,26 +43,6 @@ class extractReports:
         token = j['access_token']
         headers={'Authorization': 'Bearer {}'.format(token)}
         return headers
-    # def getAdAccounts(self, **kwargs):
-    #     status = kwargs.get('status','ACTIVE')
-    #     accountIds = kwargs.get('accountIds',[])
-    #     start = kwargs.get('start','start=0')
-    #     url = 'https://api.linkedin.com/v2/adAccountsV2?q=search&search.type.values[0]=BUSINESS&search.type.values[1]=ENTERPRISE&search.status.values[0]={}&count=99&{}&sort.field=ID&sort.order=DESCENDING'.format(status, start)
-    #     print(url)
-    #     r = self.r_session.get(url)
-    #     j = r.json()
-    #     elements = j['elements']
-    #     paging = j['paging']
-    #     links = paging['links']
-    #     for item in elements:
-    #         accountIds.append(item['id'])
-    #     if links:
-    #         if any(link['rel'] == 'next' for link in links):
-    #             for link in links:
-    #                 if link['rel'] == 'next':
-    #                     start = link['href'].split('&')[-1]
-    #                     getAccounts(status=status, accountIds=accountIds, start=start)
-    #     return accountIds
     def getAdAccounts(self, **kwargs):
         start = kwargs.get('start','start=0')
         fcontents = kwargs.get('fcontents','')
@@ -71,15 +51,14 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        
         elements = j['elements']
         if elements:
             paging = j['paging']
             links = paging['links']
-            fname = '{}:dims-accounts'.format(self.personId)
+            fname = '{}:{}:dims-accounts'.format(self.hashString(self.userId), self.personId)
             for item in elements:
                 accountIds.append(item['id'])
-                row = "{}\t{}\t{}\t{}\n".format(self.personId, item['id'], url, json.dumps(item))
+                row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, item['id'], url, json.dumps(item))
                 # print(row)
                 fcontents += row
             if links:
@@ -96,7 +75,7 @@ class extractReports:
             item = {}
             item['msg'] = 'no data'
             accountId = ''
-            row = "{}\t{}\t{}\n".format(self.personId, accountId, json.dumps(item))
+            row = "{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, json.dumps(item))
             fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
         return accountIds
@@ -105,7 +84,7 @@ class extractReports:
         fcontents = kwargs.get('fcontents','')
         campaignGroupIds = kwargs.get('campaignGroupIds', [])
         url = 'https://api.linkedin.com/v2/adCampaignGroupsV2?count=99&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(accountId, start)
-        fname = '{}:{}:dims-campaigngroups'.format(self.personId, accountId)
+        fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
         r = self.r_session.get(url)
         j = r.json()
         elements = j['elements']
@@ -115,10 +94,10 @@ class extractReports:
         if elements:
             paging = j['paging']
             links = paging['links']
-            fname = '{}:{}:dims-campaigngroups'.format(self.personId, accountId)
+            fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
             for item in elements:
                 campaignGroupIds.append(item['id'])
-                row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, item['id'], url, json.dumps(item))
+                row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, item['id'], url, json.dumps(item))
                 fcontents += row
             if links:
                 if any(link['rel'] == 'next' for link in links):
@@ -134,7 +113,7 @@ class extractReports:
             item = {}
             item['msg'] = 'no data'
             campaignGroupId = ''
-            row = "{}\t{}\t{}\n".format(self.personId, accountId, campaignGroupId, json.dumps(item))
+            row = "{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, campaignGroupId, json.dumps(item))
             fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
         return campaignGroupIds
@@ -151,10 +130,10 @@ class extractReports:
         if elements:
             paging = j['paging']
             links = paging['links']
-            fname = '{}:{}:dims-campaigns'.format(self.personId, accountId)
+            fname = '{}:{}:{}:dims-campaigns'.format(self.hashString(self.userId), self.personId, accountId)
             for item in elements:
                 campaignIds.append(item['id'])
-                row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, item['id'], url, json.dumps(item))
+                row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, item['id'], url, json.dumps(item))
                 # print(row)
                 fcontents += row
             if links:
@@ -171,7 +150,7 @@ class extractReports:
             item = {}
             item['msg'] = 'no data'
             campaignId = ''
-            row = "{}\t{}\t{}\n".format(self.personId, accountId, url, campaignId, json.dumps(item))
+            row = "{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, campaignId, json.dumps(item))
             fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigs/{}'.format(fname))
         return campaignIds
@@ -190,8 +169,8 @@ class extractReports:
         fcontents = kwargs.get('fcontents','')
         creativeIds = kwargs.get('creativeIds',[])
         url = 'https://api.linkedin.com/v2/adCreativesV2?&count=99&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(accountId, start)
-        # print(url)
-        fname = '{}:{}:match-tables-creatives'.format(self.personId, accountId)
+        print(url)
+        fname = '{}:{}:{}:match-tables-creatives'.format(self.hashString(self.userId), self.personId, accountId)
         r = self.r_session.get(url)
         j = r.json()
         elements = j['elements']
@@ -203,38 +182,38 @@ class extractReports:
                 creativeType = item['type']
                 creativeId = item['id']
                 if creativeType == 'TEXT_AD':
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, creativeId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 elif creativeType == 'SPOTLIGHT_V2':
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, creativeId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 elif creativeType == 'SPONSORED_STATUS_UPDATE':
                     urn = item['variables']['data']['com.linkedin.ads.SponsoredUpdateCreativeVariables']['activity']
                     post = self.getUgcPost(urn)
                     item['post'] = post
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, creativeId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 elif creativeType == 'SPONSORED_VIDEO':
                     urn = item['variables']['data']['com.linkedin.ads.SponsoredVideoCreativeVariables']['userGeneratedContentPost']
                     post = self.getUgcPost(urn)
                     item['post'] = post
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, creativeId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 elif creativeType == 'SPONSORED_INMAILS':
                     adInMailContentId = item['variables']['data']['com.linkedin.ads.SponsoredInMailCreativeVariables']['content']
                     message = self.getAdInmailContent(adInMailContentId)
                     item['message'] = message
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, creativeId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 elif creativeType == 'SPONSORED_MESSAGE':
                     adInMailContentId = item['variables']['data']['com.linkedin.ads.SponsoredInMailCreativeVariables']['content']
                     message = self.getAdInmailContent(adInMailContentId)
                     item['message'] = message
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, creativeId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 elif creativeType == 'SPONSORED_UPDATE_CAROUSEL':
                     urn = item['variables']['data']['com.linkedin.ads.SponsoredUpdateCarouselCreativeVariables']['activity']
                     post = self.getUgcPost(urn)
                     item['post'] = post
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, creativeId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 elif creativeType == 'FOLLOW_COMPANY_V2':
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, creativeId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 elif creativeType == 'JOBS_V2':
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, creativeId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 fcontents += row
             if links:
                 if any(link['rel'] == 'next' for link in links):
@@ -250,7 +229,7 @@ class extractReports:
             item = {}
             item['msg'] = 'no data'
             creativeId = ''
-            row = "{}\t{}\t{}\t{}\t{}\n".format(self.personId, accountId, url, creativeId, son.dumps(item))
+            row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, creativeId, son.dumps(item))
             fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
         return creativeIds
@@ -266,10 +245,10 @@ class extractReports:
             elements = j['elements']
             paging = j['paging']
             links = paging['links']
-            fname = '{}:{}:facts-creatives:{}:{}'.format(self.personId, accountId, startDate, endDate)
+            fname = '{}:{}:{}:facts-creatives:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, startDate, endDate)
             if elements:
                 for item in elements:
-                    row = "{}\t{}\t{}\t{}\n".format(self.personId, accountId, url, json.dumps(item))
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, json.dumps(item))
                     fcontents += row
                 if links:
                     if any(link['rel'] == 'next' for link in links):
@@ -285,7 +264,7 @@ class extractReports:
                 item = {}
                 item['msg'] = 'no data'
                 pivotId = ''
-                row = "{}\t{}\t{}\t{}\n".format(self.personId, accountId, url, json.dumps(item))
+                row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, json.dumps(item))
                 fcontents += row
                 s3Utils(self.config).writeToS3(fcontents, 'facts/creatives/{}'.format(fname))
         endDate = date.today()
