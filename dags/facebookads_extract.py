@@ -34,8 +34,8 @@ headers = facebookads_utils.extractReports(config, r_session).getToken()
 r_session.headers.update(headers)
 extractReports = facebookads_utils.extractReports(config, r_session)
 
-# @dag(schedule_interval="@hourly", catchup=False, default_args=default_args)
-@dag(schedule_interval=None, catchup=False, default_args=default_args)
+@dag(schedule_interval="@hourly", catchup=False, default_args=default_args)
+# @dag(schedule_interval=None, catchup=False, default_args=default_args)
 def facebookads_extract():
     @task(task_id="getToken")
     def getToken():
@@ -61,9 +61,17 @@ def facebookads_extract():
     def getCreatives(accountId):
         response = extractReports.getCreatives(accountId)
         return response
+    @task(task_id="getCustomConversions", retries=0)
+    def getCustomConversions(accountId):
+        response = extractReports.getCustomConversions(accountId)
+        return response
     @task(task_id="getCreativePerformanceReport", retries=0)
     def getCreativePerformanceReport(accountId):
         response = extractReports.getCreativePerformanceReport(accountId)
+        return response
+    @task(task_id="getAdPerformanceReport", retries=0)
+    def getAdPerformanceReport(accountId):
+        response = extractReports.getAdPerformanceReport(accountId)
         return response
 
     # token = getToken()
@@ -72,7 +80,8 @@ def facebookads_extract():
     adSets = getAdSets.expand(accountId=adAccounts)
     ads = getAds.expand(accountId=adAccounts)
     creatives = getCreatives.expand(accountId=adAccounts)
-    # creativePerformanceReport = getCreativePerformanceReport.expand(accountId=adAccounts)
+    conversions = getCustomConversions.expand(accountId=adAccounts)
+    adPerformanceReport = getAdPerformanceReport.expand(accountId=adAccounts)
     
 facebookads_extract = facebookads_extract()
 
