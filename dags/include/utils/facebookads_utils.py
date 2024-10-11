@@ -62,22 +62,26 @@ class extractReports:
           'capabilities'
         ]
         fields = ','.join(fields)
-        url = 'https://graph.facebook.com/v21.0/{}/adaccounts?limit=100&fields={}&{}'.format(self.personId, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/adaccounts?limit=999&fields={}&{}'.format(self.personId, fields, after)
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        pprint(j)
         fname = '{}:{}:dims-accounts'.format(self.hashString(self.userId), self.personId)
-        items = j['data']
-        if items:
-            paging = j['paging']
+        if 'data' in j:
+            items = j['data']
             for item in items:
                 accountIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, url, item['id'], json.dumps(item))
                 fcontents += row
-            if 'after' in paging['cursors']:
-                after = paging['cursors']['after']
-                self.getAdAccounts(fcontents=fcontents, after=after, accountIds=accountIds)
+            if 'paging' in j:
+                if 'cursors' in j['paging']:
+                    if 'after' in j['paging']['cursors']:
+                        after = 'after={}'.format(j['paging']['cursors']['after'])
+                        self.getAdAccounts(fcontents=fcontents, after=after, accountIds=accountIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                else:
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
             else:
                 s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
         else:
@@ -85,7 +89,8 @@ class extractReports:
             item['msg'] = 'no data'
             accountId = ''
             row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, url, accountId, json.dumps(item))  
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
         return accountIds
     def getAdCampaigns(self, accountId, **kwargs):
@@ -121,29 +126,35 @@ class extractReports:
             val = params[key]
             parameters.append('{}={}'.format(key, val))
         parameters = '&'.join(parameters)
-        url = 'https://graph.facebook.com/v21.0/{}/campaigns?limit=100&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/campaigns?limit=999&{}&fields={}&{}'.format(accountId, parameters, fields, after)
         print(url)
         r = self.r_session.get(url)
         j = r.json()
         fname = '{}:{}:{}:dims-campaigns'.format(self.hashString(self.userId), self.personId, accountId)
-        items = j['data']
-        if items:
-            paging = j['paging']
+        if 'data' in j:
+            items = j['data']
             for item in items:
                 campaignIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                 fcontents += row
-            if 'after' in paging['cursors']:
-                after = paging['cursors']['after']
-                self.getAdCampaigns(accountId, fcontents=fcontents, after=after, campaignIds=campaignIds)
+            if 'paging' in j:
+                if 'cursors' in j['paging']:
+                    if 'after' in j['paging']['cursors']:
+                        after = 'after={}'.format(j['paging']['cursors']['after'])
+                        self.getAdCampaigns(accountId, fcontents=fcontents, after=after, campaignIds=campaignIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                else:
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
             else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
+                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
         else:
             item = {}
             item['msg'] = 'no data'
             campaignId = ''
             row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, campaignId, json.dumps(item))
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
         return campaignIds
     def getAdSets(self, accountId, **kwargs):
@@ -202,30 +213,35 @@ class extractReports:
             val = params[key]
             parameters.append('{}={}'.format(key, val))
         parameters = '&'.join(parameters)
-        url = 'https://graph.facebook.com/v21.0/{}/adsets?limit=100&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/adsets?limit=999&{}&fields={}&{}'.format(accountId, parameters, fields, after)
         print(url)
         r = self.r_session.get(url)
         j = r.json()
         fname = '{}:{}:{}:dims-adsets'.format(self.hashString(self.userId), self.personId, accountId)
-        print(j)
-        items = j['data']
-        if items:
-            paging = j['paging']
+        if 'data' in j:
+            items = j['data']
             for item in items:
                 adsetIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                 fcontents += row
-            if 'after' in paging['cursors']:
-                after = paging['cursors']['after']
-                self.getAdSets(accountId, fcontents=fcontents, after=after, adsetIds=adsetIds)
+            if 'paging' in j:
+                if 'cursors' in j['paging']:
+                    if 'after' in j['paging']['cursors']:
+                        after = 'after={}'.format(j['paging']['cursors']['after'])
+                        self.getAdSets(accountId, fcontents=fcontents, after=after, adsetIds=adsetIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                else:
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
             else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
+                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
         else:
             item = {}
             item['msg'] = 'no data'
             adsetId = ''
             row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, adsetId, json.dumps(item))
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
         return adsetIds
     def getAds(self, accountId, **kwargs):
@@ -257,30 +273,35 @@ class extractReports:
             val = params[key]
             parameters.append('{}={}'.format(key, val))
         parameters = '&'.join(parameters)
-        url = 'https://graph.facebook.com/v21.0/{}/ads?limit=100&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/ads?limit=249&{}&fields={}&{}'.format(accountId, parameters, fields, after)
         print(url)
         r = self.r_session.get(url)
         j = r.json()
         fname = '{}:{}:{}:dims-ads'.format(self.hashString(self.userId), self.personId, accountId)
-        print(j)
-        items = j['data']
-        if items:
-            paging = j['paging']
+        if 'data' in j:
+            items = j['data']
             for item in items:
                 adIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                 fcontents += row
-            if 'after' in paging['cursors']:
-                after = paging['cursors']['after']
-                self.getAds(accountId, fcontents=fcontents, after=after, adsetIds=adIds)
+            if 'paging' in j:
+                if 'cursors' in j['paging']:
+                    if 'after' in j['paging']['cursors']:
+                        after = 'after={}'.format(j['paging']['cursors']['after'])
+                        self.getAds(accountId, fcontents=fcontents, after=after, adsetIds=adIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                else:
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
             else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
+                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
         else:
             item = {}
             item['msg'] = 'no data'
             adId = ''
             row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, adId, json.dumps(item))
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
         return adIds
     def getCreatives(self, accountId, **kwargs):
@@ -352,225 +373,205 @@ class extractReports:
             val = params[key]
             parameters.append('{}={}'.format(key, val))
         parameters = '&'.join(parameters)
-        url = 'https://graph.facebook.com/v21.0/{}/adcreatives?limit=100&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/adcreatives?limit=249&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+        print(url)
+        r = self.r_session.get(url)
+        j = r.json()
+        fname = '{}:{}:{}:dims-creatives'.format(self.hashString(self.userId), self.personId, accountId)
+        if 'data' in j:
+            items = j['data']
+            for item in items:
+                creativeIds.append(item['id'])
+                row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
+                fcontents += row
+            if 'paging' in j:
+                if 'cursors' in j['paging']:
+                    if 'after' in j['paging']['cursors']:
+                        after = 'after={}'.format(j['paging']['cursors']['after'])
+                        self.getCreatives(accountId, fcontents=fcontents, after=after, creativeIds=creativeIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                else:
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+            else:
+                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+        else: 
+            item = {}
+            item['msg'] = 'no data'
+            creativeId = ''
+            row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, creativeId, json.dumps(item))
+            if fcontents == '':
+                fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
+            
+        return creativeIds
+    def getCustomConversions(self, accountId, **kwargs):
+        fcontents = kwargs.get('fcontents','')
+        after = kwargs.get('after','after=')
+        conversionIds = kwargs.get('conversionIds',[])
+        fields = [
+          'id',
+          'account_id',
+          'name',
+          'aggration_rule',
+          'business',
+          'creation_time',
+          'custom_event_type',
+          'data_sources',
+          'default_conversion_value',
+          'description',
+          'event_source_type',
+          'first_fired_time',
+          'is_archived',
+          'is_unavailable',
+          'last_fired_time',
+          'offline_conversion_data_set',
+          'pixel',
+          'retention_days',
+          'rule'
+        ]
+        fields = ','.join(fields)
+        url = 'https://graph.facebook.com/v21.0/{}/customconversions?limit=10&fields={}&{}'.format(accountId, fields, after)
         print(url)
         r = self.r_session.get(url)
         j = r.json()
         fname = '{}:{}:{}:dims-creatives'.format(self.hashString(self.userId), self.personId, accountId)
         # pprint(j)
-        items = j['data']
-        if items:
-            paging = j['paging']
+        if 'data' in j:
+            items = j['data']
             for item in items:
-                creativeIds.append(item['id'])
+                conversionIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                 fcontents += row
-            if 'after' in paging['cursors']:
-                after = paging['cursors']['after']
-                self.getAds(accountId, fcontents=fcontents, after=after, creativeIds=creativeIds)
+            if 'paging' in j:
+                if 'cursors' in j['paging']:
+                    if 'after' in j['paging']['cursors']:
+                        after = 'after={}'.format(j['paging']['cursors']['after'])
+                        self.getCustomConversions(accountId, fcontents=fcontents, after=after, conversionIds=conversionIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                else:
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
             else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
+                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
         else:
             item = {}
             item['msg'] = 'no data'
-            creativeId = ''
-            row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, creativeId, json.dumps(item))
-            fcontents += row
-            s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
-        return creativeIds
-    # def getAdCampaignGroups(self, accountId, **kwargs):
-    #     start = kwargs.get('start','start=0')
-    #     fcontents = kwargs.get('fcontents','')
-    #     campaignGroupIds = kwargs.get('campaignGroupIds', [])
-    #     url = 'https://api.linkedin.com/v2/adCampaignGroupsV2?count=99&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(accountId, start)
-    #     fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
-    #     r = self.r_session.get(url)
-    #     j = r.json()
-    #     elements = j['elements']
-    #     paging = j['paging']
-    #     links = paging['links']
-    #     elements = j['elements']
-    #     if elements:
-    #         paging = j['paging']
-    #         links = paging['links']
-    #         fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
-    #         for item in elements:
-    #             campaignGroupIds.append(item['id'])
-    #             row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, item['id'], url, json.dumps(item))
-    #             fcontents += row
-    #         if links:
-    #             if any(link['rel'] == 'next' for link in links):
-    #                 for link in links:
-    #                     if link['rel'] == 'next':
-    #                         start = link['href'].split('&')[-1]
-    #                         self.getAdCampaignGroups(accountId, start=start, fcontents=fcontents, campaignGroupIds=campaignGroupIds)
-    #             else:
-    #                 s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
-    #         else:
-    #             s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
-    #     else:
-    #         item = {}
-    #         item['msg'] = 'no data'
-    #         campaignGroupId = ''
-    #         row = "{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, campaignGroupId, json.dumps(item))
-    #         fcontents += row
-    #         s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
-    #     return campaignGroupIds
-    # def getAdCampaigns(self, accountId, **kwargs):
-    #     start = kwargs.get('start','start=0')
-    #     fcontents = kwargs.get('fcontents','')
-    #     campaignIds = kwargs.get('campaignIds', [])
-    #     url = 'https://api.linkedin.com/v2/adCampaignsV2?count=99&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(accountId, start)
-    #     print(url)
-    #     r = self.r_session.get(url)
-    #     j = r.json()
-    #     campaignIds = []
-    #     elements = j['elements']
-    #     if elements:
-    #         paging = j['paging']
-    #         links = paging['links']
-    #         fname = '{}:{}:{}:dims-campaigns'.format(self.hashString(self.userId), self.personId, accountId)
-    #         for item in elements:
-    #             campaignIds.append(item['id'])
-    #             row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, item['id'], url, json.dumps(item))
-    #             # print(row)
-    #             fcontents += row
-    #         if links:
-    #             if any(link['rel'] == 'next' for link in links):
-    #                 for link in links:
-    #                     if link['rel'] == 'next':
-    #                         start = link['href'].split('&')[-1]
-    #                         self.getAdCampaigns(accountId, start=start, fcontents=fcontents, campaignIds=campaignIds)
-    #             else:
-    #                 s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
-    #         else:
-    #             s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
-    #     else:
-    #         item = {}
-    #         item['msg'] = 'no data'
-    #         campaignId = ''
-    #         row = "{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, campaignId, json.dumps(item))
-    #         fcontents += row
-    #         s3Utils(self.config).writeToS3(fcontents,'dims/campaigs/{}'.format(fname))
-    #     return campaignIds
-    # def getUgcPost(self, shareUrn):
-    #     url = 'https://api.linkedin.com/v2/ugcPosts/{}'.format(urllib.parse.quote(shareUrn))
-    #     r = self.r_session.get(url)
-    #     j = r.json()
-    #     return(j)
-    # def getAdInmailContent(self, adInMailContentId):
-    #     url = 'https://api.linkedin.com/v2/adInMailContentsV2/{}'.format(urllib.parse.quote(adInMailContentId.split(':')[-1]))
-    #     r = self.r_session.get(url)
-    #     j = r.json()
-    #     return(j)
-    # def getAdCreatives(self, accountId, **kwargs):
-    #     start = kwargs.get('start','start=0')
-    #     fcontents = kwargs.get('fcontents','')
-    #     creativeIds = kwargs.get('creativeIds',[])
-    #     url = 'https://api.linkedin.com/v2/adCreativesV2?&count=99&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(accountId, start)
-    #     print(url)
-    #     fname = '{}:{}:{}:match-tables-creatives'.format(self.hashString(self.userId), self.personId, accountId)
-    #     r = self.r_session.get(url)
-    #     j = r.json()
-    #     elements = j['elements']
-    #     if elements:
-    #         paging = j['paging']
-    #         links = paging['links']
-    #         for item in elements:
-    #             creativeIds.append(item['id'])
-    #             creativeType = item['type']
-    #             creativeId = item['id']
-    #             if creativeType == 'TEXT_AD':
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-    #             elif creativeType == 'SPOTLIGHT_V2':
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-    #             elif creativeType == 'SPONSORED_STATUS_UPDATE':
-    #                 urn = item['variables']['data']['com.linkedin.ads.SponsoredUpdateCreativeVariables']['activity']
-    #                 post = self.getUgcPost(urn)
-    #                 item['post'] = post
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-    #             elif creativeType == 'SPONSORED_VIDEO':
-    #                 urn = item['variables']['data']['com.linkedin.ads.SponsoredVideoCreativeVariables']['userGeneratedContentPost']
-    #                 post = self.getUgcPost(urn)
-    #                 item['post'] = post
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-    #             elif creativeType == 'SPONSORED_INMAILS':
-    #                 adInMailContentId = item['variables']['data']['com.linkedin.ads.SponsoredInMailCreativeVariables']['content']
-    #                 message = self.getAdInmailContent(adInMailContentId)
-    #                 item['message'] = message
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-    #             elif creativeType == 'SPONSORED_MESSAGE':
-    #                 adInMailContentId = item['variables']['data']['com.linkedin.ads.SponsoredInMailCreativeVariables']['content']
-    #                 message = self.getAdInmailContent(adInMailContentId)
-    #                 item['message'] = message
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-    #             elif creativeType == 'SPONSORED_UPDATE_CAROUSEL':
-    #                 urn = item['variables']['data']['com.linkedin.ads.SponsoredUpdateCarouselCreativeVariables']['activity']
-    #                 post = self.getUgcPost(urn)
-    #                 item['post'] = post
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-    #             elif creativeType == 'FOLLOW_COMPANY_V2':
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-    #             elif creativeType == 'JOBS_V2':
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-    #             fcontents += row
-    #         if links:
-    #             if any(link['rel'] == 'next' for link in links):
-    #                 for link in links:
-    #                     if link['rel'] == 'next':
-    #                         start = link['href'].split('&')[-1]
-    #                         self.getAdCreatives(accountId, start=start, fcontents=fcontents, creativeIds=creativeIds)
-    #             else:
-    #                 s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
-    #         else:
-    #             s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
-    #     else:
-    #         item = {}
-    #         item['msg'] = 'no data'
-    #         creativeId = ''
-    #         row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, creativeId, son.dumps(item))
-    #         fcontents += row
-    #         s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
-    #     return creativeIds
-    # def getCreativePerformanceReport(self, accountId):
-    #     def doGetCreativePerformanceReport(accountId, reportStart, reportEnd, startDate, endDate, **kwargs):
-    #         start = kwargs.get('start','start=0')
-    #         fcontents = kwargs.get('fcontents','')
-    #         url = 'https://api.linkedin.com/v2/adAnalyticsV2?count=999999&{}&q=analytics&{}&{}&timeGranularity=DAILY&accounts=urn%3Ali%3AsponsoredAccount%3A{}&pivot=CREATIVE&fields=dateRange,impressions,clicks,landingPageClicks,companyPageClicks,totalEngagements,costInUsd,externalWebsiteConversions,externalWebsitePostClickConversions,externalWebsitePostViewConversions,oneClickLeads,pivot,pivotValue'.format(start, reportStart, reportEnd, accountId)
-    #         # print(url)
-    #         r = self.r_session.get(url)
-    #         j = r.json()
-    #         print(j)
-    #         elements = j['elements']
-    #         paging = j['paging']
-    #         links = paging['links']
-    #         fname = '{}:{}:{}:facts-creatives:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, startDate, endDate)
-    #         if elements:
-    #             for item in elements:
-    #                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, json.dumps(item))
-    #                 fcontents += row
-    #             if links:
-    #                 if any(link['rel'] == 'next' for link in links):
-    #                     for link in links:
-    #                         if link['rel'] == 'next':
-    #                             start = link['href'].split('&')[-2]
-    #                             doGetCreativePerformanceReport(accountId, reportStart, reportEnd, startDate, endDate, start=start, fcontents=fcontents)
-    #                 else:
-    #                     s3Utils(self.config).writeToS3(fcontents, 'facts/creatives/{}'.format(fname))
-    #             else:
-    #                 s3Utils(self.config).writeToS3(fcontents, 'facts/creatives/{}'.format(fname))
-    #         else:
-    #             item = {}
-    #             item['msg'] = 'no data'
-    #             pivotId = ''
-    #             row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, json.dumps(item))
-    #             fcontents += row
-    #             s3Utils(self.config).writeToS3(fcontents, 'facts/creatives/{}'.format(fname))
-    #     endDate = date.today()
-    #     startDate = date.today() - timedelta(days = self.attWindow)
-    #     delta = endDate - startDate
-    #     for i in range(delta.days):
-    #         interval = startDate + timedelta(days=i)
-    #         reportStart = 'dateRange.start.year={}&dateRange.start.month={}&dateRange.start.day={}'.format(interval.year,interval.month,interval.day)
-    #         reportEnd = 'dateRange.end.year={}&dateRange.end.month={}&dateRange.end.day={}'.format(interval.year,interval.month,interval.day)
-    #         doGetCreativePerformanceReport(accountId, reportStart, reportEnd, interval, interval)
+            conversionId = ''
+            row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, conversionId, json.dumps(item))
+            if fcontents == '':
+                fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/conversions/{}'.format(fname))
+        return conversionIds
+    def getAdPerformanceReport(self, accountId):
+        def doGetAdPerformanceReport(accountId, startDate, endDate, **kwargs):
+            fcontents = kwargs.get('fcontents','')
+            after = kwargs.get('after','after=')
+            fields = [
+                'campaign_id',
+                'campaign_name',
+                'adset_id',
+                'adset_name',
+                'ad_id',
+                'ad_name',
+                'date_start',
+                'date_stop',
+                'impressions',
+                'labels',
+                'objective',
+                'clicks',
+                'outbound_clicks',
+                'spend',
+                'conversions',
+                'actions',
+                'ad_format_asset', 
+                'body_asset', 
+                'call_to_action_asset', 
+                'description_asset', 
+                'image_asset', 
+                'link_url_asset', 
+                'title_asset', 
+                'video_asset', 
+            ]
+            fields = ','.join(fields)
+            params = {
+                'time_range': {'since':startDate,'until':endDate},
+                'use_account_attribution_setting': 'true',
+                'time_increment': 1,
+                'filtering': [],
+                'level': 'ad',
+                'action_report_time': 'conversion',
+                'breakdowns': [ 
+                    'ad_format_asset', 
+                    'age', 
+                    'body_asset', 
+                    'call_to_action_asset', 
+                    'country', 
+                    'description_asset', 
+                    'gender', 
+                    'image_asset', 
+                    'impression_device', 
+                    'link_url_asset', 
+                    'product_id', 
+                    'region', 
+                    'title_asset', 
+                    'video_asset', 
+                    'dma', 
+                    'frequency_value', 
+                    'hourly_stats_aggregated_by_advertiser_time_zone', 
+                    'hourly_stats_aggregated_by_audience_time_zone', 
+                    'place_page_id', 
+                    'publisher_platform',
+                    'platform_position', 
+                    'device_platform'
+                ],
+                'action_breakdowns' : [
+                    'action_type', 
+                    'action_target_id',
+                    'action_destination',
+                    'action_device'
+                ],
+                
+            }
+            parameters = []
+            keys = params.keys()
+            for key in keys:
+                val = params[key]
+                parameters.append('{}={}'.format(key, val))
+            parameters = '&'.join(parameters)
+            url = 'https://graph.facebook.com/v21.0/{}/insights?limit=199&level=ad&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+            print(url)
+            r = self.r_session.get(url)
+            j = r.json()
+            fname = '{}:{}:{}:facts-ads:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, startDate, endDate)
+            # pprint(j)
+            if 'data' in j:
+                items = j['data']
+                for item in items:
+                    row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
+                    fcontents += row
+                if 'paging' in j:
+                    if 'cursors' in j['paging']:
+                        if 'after' in j['paging']['cursors']:
+                            after = 'after={}'.format(j['paging']['cursors']['after'])
+                            doGetAdPerformanceReport(accountId, startDate, endDate, fcontents=fcontents, after=after)
+                        else:
+                            s3Utils(self.config).writeToS3(fcontents, 'facts/ads/{}'.format(fname))
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents, 'facts/ads/{}'.format(fname))
+                else:
+                    s3Utils(self.config).writeToS3(fcontents, 'facts/ads/{}'.format(fname))
+            else:
+                item = {}
+                item['msg'] = 'no data'
+                conversionId = ''
+                row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, conversionId, json.dumps(item))
+                if fcontents == '':
+                    fcontents += row
+                s3Utils(self.config).writeToS3(fcontents, 'facts/ads/{}'.format(fname))
+        endDate = date.today()
+        startDate = date.today() - timedelta(days = self.attWindow)
+        delta = endDate - startDate
+        for i in range(delta.days):
+            interval = str(startDate + timedelta(days=i))
+            doGetAdPerformanceReport(accountId, interval, interval)

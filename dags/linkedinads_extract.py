@@ -37,10 +37,10 @@ extractReports = linkedinads_utils.extractReports(config, r_session)
 @dag(schedule_interval="@hourly", catchup=False, default_args=default_args)
 # @dag(schedule_interval=None, catchup=False, default_args=default_args)
 def linkedinads_extract():
-    # @task(task_id="getToken")
-    # def getToken():
-    #     headers = linkedinads_utils.extractReports(config, r_session).getToken()
-    #     print(headers)
+    @task(task_id="getToken")
+    def getToken():
+        headers = linkedinads_utils.extractReports(config, r_session).getToken()
+        return headers
     @task(task_id="getAdAccounts", retries=0)
     def getAdAccounts():
         response = extractReports.getAdAccounts()
@@ -62,7 +62,7 @@ def linkedinads_extract():
         response = extractReports.getCreativePerformanceReport(accountId)
         return response
 
-    # tokem = getToken()
+    # token = getToken()
     adAccounts = getAdAccounts()
     adCampaignGroups = getAdCampaignGroups.expand(accountId=adAccounts)
     adCampaigns = getAdCampaigns.expand(accountId=adAccounts)

@@ -51,22 +51,24 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        elements = j['elements']
-        if elements:
-            paging = j['paging']
-            links = paging['links']
+        if 'elements' in j:
+            elements = j['elements']
             fname = '{}:{}:dims-accounts'.format(self.hashString(self.userId), self.personId)
             for item in elements:
                 accountIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, item['id'], url, json.dumps(item))
                 # print(row)
                 fcontents += row
-            if links:
-                if any(link['rel'] == 'next' for link in links):
-                    for link in links:
-                        if link['rel'] == 'next':
-                            start = link['href'].split('&')[-1]
-                            self.getAdAccounts(start=start, fcontents=fcontents, accountIds=accountIds)
+            if 'paging' in j:
+                if 'links' in j['paging']:
+                    links = j['paging']['links']
+                    if any(link['rel'] == 'next' for link in links):
+                        for link in links:
+                            if link['rel'] == 'next':
+                                start = link['href'].split('&')[-1]
+                                self.getAdAccounts(start=start, fcontents=fcontents, accountIds=accountIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
                 else:
                     s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
             else:
@@ -76,7 +78,8 @@ class extractReports:
             item['msg'] = 'no data'
             accountId = ''
             row = "{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, json.dumps(item))
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
         return accountIds
     def getAdCampaignGroups(self, accountId, **kwargs):
@@ -87,24 +90,23 @@ class extractReports:
         fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
         r = self.r_session.get(url)
         j = r.json()
-        elements = j['elements']
-        paging = j['paging']
-        links = paging['links']
-        elements = j['elements']
-        if elements:
-            paging = j['paging']
-            links = paging['links']
+        if 'elements' in j:
+            elements = j['elements']
             fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
             for item in elements:
                 campaignGroupIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, item['id'], url, json.dumps(item))
                 fcontents += row
-            if links:
-                if any(link['rel'] == 'next' for link in links):
-                    for link in links:
-                        if link['rel'] == 'next':
-                            start = link['href'].split('&')[-1]
-                            self.getAdCampaignGroups(accountId, start=start, fcontents=fcontents, campaignGroupIds=campaignGroupIds)
+            if 'paging' in j:
+                if 'links' in j['paging']:
+                    links = j['paging']['links']
+                    if any(link['rel'] == 'next' for link in links):
+                        for link in links:
+                            if link['rel'] == 'next':
+                                start = link['href'].split('&')[-1]
+                                self.getAdCampaignGroups(accountId, start=start, fcontents=fcontents, campaignGroupIds=campaignGroupIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
                 else:
                     s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
             else:
@@ -114,7 +116,8 @@ class extractReports:
             item['msg'] = 'no data'
             campaignGroupId = ''
             row = "{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, campaignGroupId, json.dumps(item))
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
         return campaignGroupIds
     def getAdCampaigns(self, accountId, **kwargs):
@@ -125,23 +128,24 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        campaignIds = []
-        elements = j['elements']
-        if elements:
-            paging = j['paging']
-            links = paging['links']
+        if 'elements' in j:
+            elements = j['elements']
             fname = '{}:{}:{}:dims-campaigns'.format(self.hashString(self.userId), self.personId, accountId)
             for item in elements:
                 campaignIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, item['id'], url, json.dumps(item))
                 # print(row)
                 fcontents += row
-            if links:
-                if any(link['rel'] == 'next' for link in links):
-                    for link in links:
-                        if link['rel'] == 'next':
-                            start = link['href'].split('&')[-1]
-                            self.getAdCampaigns(accountId, start=start, fcontents=fcontents, campaignIds=campaignIds)
+            if 'paging' in j:
+                if 'links' in j['paging']:
+                    links = j['paging']['links']
+                    if any(link['rel'] == 'next' for link in links):
+                        for link in links:
+                            if link['rel'] == 'next':
+                                start = link['href'].split('&')[-1]
+                                self.getAdCampaigns(accountId, start=start, fcontents=fcontents, campaignIds=campaignIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
                 else:
                     s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
             else:
@@ -151,7 +155,8 @@ class extractReports:
             item['msg'] = 'no data'
             campaignId = ''
             row = "{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, campaignId, json.dumps(item))
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigs/{}'.format(fname))
         return campaignIds
     def getUgcPost(self, shareUrn):
@@ -173,13 +178,12 @@ class extractReports:
         fname = '{}:{}:{}:match-tables-creatives'.format(self.hashString(self.userId), self.personId, accountId)
         r = self.r_session.get(url)
         j = r.json()
-        elements = j['elements']
-        if elements:
-            paging = j['paging']
-            links = paging['links']
+        if 'elements' in j:
+            elements = j['elements']
             for item in elements:
                 creativeIds.append(item['id'])
                 creativeType = item['type']
+                # print(creativeType)
                 creativeId = item['id']
                 if creativeType == 'TEXT_AD':
                     row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
@@ -214,13 +218,19 @@ class extractReports:
                     row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 elif creativeType == 'JOBS_V2':
                     row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
+                else:
+                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 fcontents += row
-            if links:
-                if any(link['rel'] == 'next' for link in links):
-                    for link in links:
-                        if link['rel'] == 'next':
-                            start = link['href'].split('&')[-1]
-                            self.getAdCreatives(accountId, start=start, fcontents=fcontents, creativeIds=creativeIds)
+            if 'paging' in j:
+                if 'links' in j['paging']:
+                    links = j['paging']['links']
+                    if any(link['rel'] == 'next' for link in links):
+                        for link in links:
+                            if link['rel'] == 'next':
+                                start = link['href'].split('&')[-1]
+                                self.getAdCreatives(accountId, start=start, fcontents=fcontents, creativeIds=creativeIds)
+                    else:
+                        s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
                 else:
                     s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
             else:
@@ -229,8 +239,9 @@ class extractReports:
             item = {}
             item['msg'] = 'no data'
             creativeId = ''
-            row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, creativeId, son.dumps(item))
-            fcontents += row
+            row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, creativeId, json.dumps(item))
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
         return creativeIds
     def getCreativePerformanceReport(self, accountId):
@@ -241,21 +252,22 @@ class extractReports:
             # print(url)
             r = self.r_session.get(url)
             j = r.json()
-            print(j)
-            elements = j['elements']
-            paging = j['paging']
-            links = paging['links']
             fname = '{}:{}:{}:facts-creatives:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, startDate, endDate)
-            if elements:
+            if 'elements' in j:
+                elements = j['elements']
                 for item in elements:
                     row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, json.dumps(item))
                     fcontents += row
-                if links:
-                    if any(link['rel'] == 'next' for link in links):
-                        for link in links:
-                            if link['rel'] == 'next':
-                                start = link['href'].split('&')[-2]
-                                doGetCreativePerformanceReport(accountId, reportStart, reportEnd, startDate, endDate, start=start, fcontents=fcontents)
+                if 'paging' in j:
+                    if 'links' in j['paging']:
+                        links = j['paging']['links']
+                        if any(link['rel'] == 'next' for link in links):
+                            for link in links:
+                                if link['rel'] == 'next':
+                                    start = link['href'].split('&')[-1]
+                                    doGetCreativePerformanceReport(accountId, reportStart, reportEnd, startDate, endDate, start=start, fcontents=fcontents)
+                        else:
+                            s3Utils(self.config).writeToS3(fcontents, 'facts/creatives/{}'.format(fname))
                     else:
                         s3Utils(self.config).writeToS3(fcontents, 'facts/creatives/{}'.format(fname))
                 else:
@@ -265,7 +277,8 @@ class extractReports:
                 item['msg'] = 'no data'
                 pivotId = ''
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, json.dumps(item))
-                fcontents += row
+                if fcontents == '':
+                    fcontents += row
                 s3Utils(self.config).writeToS3(fcontents, 'facts/creatives/{}'.format(fname))
         endDate = date.today()
         startDate = date.today() - timedelta(days = self.attWindow)
