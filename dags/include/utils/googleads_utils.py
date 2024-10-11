@@ -66,7 +66,8 @@ class extractReports:
             item['msg'] = 'no data'
             adAccountId = 'none'
             row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{adAccountId}\t{url}\t{query}\t{json.dumps(item)}\n"
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
         return accounts
     def getAdCampaigns(self, accountId, **kwargs):
@@ -94,7 +95,8 @@ class extractReports:
             item['msg'] = 'no data'
             adCampaignId = 'none'
             row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adCampaignId}\t{url}\t{query}\t{json.dumps(item)}\n"
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
         return campaigns
     def getAdGroups(self, accountId, **kwargs):
@@ -122,7 +124,8 @@ class extractReports:
             item['msg'] = 'no data'
             adGroupId = 'none'
             row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adGroupId}\t{url}\t{query}\t{json.dumps(item)}\n"
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/adgroups/{}'.format(fname))
         return adgroups
     def getAds(self, accountId, **kwargs):
@@ -151,7 +154,8 @@ class extractReports:
             item['msg'] = 'no data'
             adId = 'none'
             row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adId}\t{url}\t{query}\t{json.dumps(item)}\n"
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/ads/{}'.format(fname))
         return ads
     def getAdLabels(self, accountId, **kwargs):
@@ -180,7 +184,8 @@ class extractReports:
             item['msg'] = 'no data'
             adId = 'none'
             row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adId}\t{url}\t{query}\t{json.dumps(item)}\n"
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents, 'dims/adlabels/{}'.format(fname))
         return adLabels
     def getKws(self, accountId, **kwargs):
@@ -209,7 +214,8 @@ class extractReports:
             item['msg'] = 'no data'
             kwId = 'none'
             row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{kwId}\t{url}\t{query}\t{json.dumps(item)}\n"
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents, 'dims/kws/{}'.format(fname))
         return kws
     def getKwLabels(self, accountId, **kwargs):
@@ -238,7 +244,8 @@ class extractReports:
             item['msg'] = 'no data'
             kwId = 'none'
             row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{kwId}\t{url}\t{query}\t{json.dumps(item)}\n"
-            fcontents += row
+            if fcontents == '':
+                fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/kwlabels/{}'.format(fname))
         return kwLabels
     def getAdPerformanceReport(self, accountId):
@@ -266,13 +273,14 @@ class extractReports:
                 item['msg'] = 'no data'
                 adId = 'none'
                 row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{adId}\t{url}\t{query}\t{json.dumps(item)}\n"
-                fcontents += row
+                if fcontents == '':
+                    fcontents += row
                 s3Utils(self.config).writeToS3(fcontents,'facts/ads/{}'.format(fname))
         endDate = date.today()
         startDate = date.today() - timedelta(days = self.attWindow)
         delta = endDate - startDate
         for i in range(delta.days):
-            interval = startDate + timedelta(days=i)
+            interval = str(startDate + timedelta(days=i))
             doGetAdPerformanceReport(accountId, interval, interval)
     def getKwPerformanceReport(self, accountId):
         def doGetKwPerformanceReport(accountId, startDate, endDate, **kwargs):
@@ -299,13 +307,14 @@ class extractReports:
                 item['msg'] = 'no data'
                 kwId = 'none'
                 row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{kwId}\t{url}\t{query}\t{json.dumps(item)}\n"
-                fcontents += row
+                if fcontents == '':
+                    fcontents += row
                 s3Utils(self.config).writeToS3(fcontents,'facts/kws/{}'.format(fname))
         endDate = date.today()
         startDate = date.today() - timedelta(days = self.attWindow)
         delta = endDate - startDate
         for i in range(delta.days):
-            interval = startDate + timedelta(days=i)
+            interval = str(startDate + timedelta(days=i))
             doGetKwPerformanceReport(accountId, interval, interval)
     def getClickPerformanceReport(self, accountId):
         def doGetClickPerformanceReport(accountId, startDate, endDate, **kwargs):
@@ -331,13 +340,14 @@ class extractReports:
                 item['msg'] = 'no data'
                 clickId = 'none'
                 row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{clickId}\t{url}\t{query}\t{json.dumps(item)}\n"
-                fcontents += row
+                if fcontents == '':
+                    fcontents += row
                 s3Utils(self.config).writeToS3(fcontents,'facts/clks/{}'.format(fname))
         endDate = date.today()
         startDate = date.today() - timedelta(days = 90)
         delta = endDate - startDate
         for i in range(delta.days):
-            interval = startDate + timedelta(days=i)
+            interval = str(startDate + timedelta(days=i))
             doGetClickPerformanceReport(accountId, interval, interval)
     def getChangeEventReport(self, accountId):
         def doGetChangeEventReport(accountId, startDate, endDate, **kwargs):
@@ -364,11 +374,12 @@ class extractReports:
                 item['msg'] = 'no data'
                 chevId = 'none'
                 row = f"{self.hashString(self.userId)}\t{self.hashString(self.personId)}\t{accountId}\t{chevId}\t{url}\t{query}\t{json.dumps(item)}\n"
-                fcontents += row
+                if fcontents == '':
+                    fcontents += row
                 s3Utils(self.config).writeToS3(fcontents,'chevs/{}'.format(fname))
         endDate = date.today()
         startDate = date.today() - timedelta(days = 30)
         delta = endDate - startDate
         for i in range(delta.days):
-            interval = startDate + timedelta(days=i)
+            interval = str(startDate + timedelta(days=i))
             doGetChangeEventReport(accountId, interval, interval)
