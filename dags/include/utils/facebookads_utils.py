@@ -143,11 +143,11 @@ class extractReports:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
                         self.getAdCampaigns(accountId, fcontents=fcontents, after=after, campaignIds=campaignIds)
                     else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
                 else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
             else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
         else:
             item = {}
             item['msg'] = 'no data'
@@ -230,11 +230,11 @@ class extractReports:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
                         self.getAdSets(accountId, fcontents=fcontents, after=after, adsetIds=adsetIds)
                     else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
                 else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
             else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
         else:
             item = {}
             item['msg'] = 'no data'
@@ -290,11 +290,11 @@ class extractReports:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
                         self.getAds(accountId, fcontents=fcontents, after=after, adsetIds=adIds)
                     else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
                 else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
             else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
         else:
             item = {}
             item['msg'] = 'no data'
@@ -390,11 +390,11 @@ class extractReports:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
                         self.getCreatives(accountId, fcontents=fcontents, after=after, creativeIds=creativeIds)
                     else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
                 else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
             else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
         else: 
             item = {}
             item['msg'] = 'no data'
@@ -449,11 +449,11 @@ class extractReports:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
                         self.getCustomConversions(accountId, fcontents=fcontents, after=after, conversionIds=conversionIds)
                     else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                        s3Utils(self.config).writeToS3(fcontents, 'dims/conversions/{}'.format(fname))
                 else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                    s3Utils(self.config).writeToS3(fcontents, 'dims/conversions/{}'.format(fname))
             else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                s3Utils(self.config).writeToS3(fcontents, 'dims/conversions/{}'.format(fname))
         else:
             item = {}
             item['msg'] = 'no data'
