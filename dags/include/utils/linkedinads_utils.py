@@ -51,9 +51,9 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
+        fname = '{}:{}:dims-accounts'.format(self.hashString(self.userId), self.personId)
         if 'elements' in j:
             elements = j['elements']
-            fname = '{}:{}:dims-accounts'.format(self.hashString(self.userId), self.personId)
             for item in elements:
                 accountIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, item['id'], url, json.dumps(item))
@@ -90,9 +90,9 @@ class extractReports:
         fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
         r = self.r_session.get(url)
         j = r.json()
+        fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
         if 'elements' in j:
             elements = j['elements']
-            fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
             for item in elements:
                 campaignGroupIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, item['id'], url, json.dumps(item))
@@ -128,9 +128,9 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
+        fname = '{}:{}:{}:dims-campaigns'.format(self.hashString(self.userId), self.personId, accountId)
         if 'elements' in j:
             elements = j['elements']
-            fname = '{}:{}:{}:dims-campaigns'.format(self.hashString(self.userId), self.personId, accountId)
             for item in elements:
                 campaignIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, item['id'], url, json.dumps(item))
