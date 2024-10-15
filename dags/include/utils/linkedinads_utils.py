@@ -6,6 +6,7 @@ import simplejson as json
 import hashlib
 import sys
 from pprint import pprint
+import urllib
 
 class extractReports:
     def __init__(self, config, r_session):
