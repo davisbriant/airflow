@@ -29,12 +29,8 @@ class extractReports:
         url = 'https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id={}&client_secret={}&fb_exchange_token={}'.format(self.clientId, self.clientSecret, refresh_token)
         r = self.r_session.get(url)
         j = r.json()
-        # print(j)
-        obj = {}
-        obj['token'] = j
-        obj['personInfo'] = payload[self.personId]
-        payload[self.personId] = obj
-        ddbUtils(self.config).putItem(self.tableName, self.partKey, self.personId, 'payload', payload)
+        payload[self.personId]['token'] = j
+        ddbUtils(self.config).putItem(self.tableName, self.partKey, self.userId, 'payload', payload)
         token = j['access_token']
         headers={'Authorization': 'Bearer {}'.format(token)}
         return headers
