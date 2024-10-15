@@ -4,6 +4,7 @@ from datetime import date, datetime, time, timedelta
 import requests
 import simplejson as json
 import hashlib
+from pprint import pprint
 
 class extractReports:
     def __init__(self, config, r_session):
@@ -24,18 +25,20 @@ class extractReports:
     def getToken(self):
         response = ddbUtils(self.config).getItem(self.tableName,self.partKey,self.userId)
         payload = response['Item']['payload']
+        # pprint(payload)
         refresh_token = payload[self.personId]['token']['refresh_token']
         headers = {"client_id": self.clientId, "client_secret": self.clientSecret, "grant_type": "refresh_token", "refresh_token": refresh_token}
         url = "https://oauth2.googleapis.com/token"
         r = self.r_session.post(url, json=headers)
         j = r.json()
-        # print(j)
-        # j['refresh_token'] = refresh_token
+        # pprint(j)
         obj = {}
         obj['token'] = j
+        obj['token']['refresh_token'] = refresh_token
         obj['personInfo'] = payload[self.personId]['personInfo']
         payload[self.personId] = obj
-        ddbUtils(self.config).putItem(self.tableName, self.partKey, self.personId, 'payload', payload)
+        # pprint(payload)
+        ddbUtils(self.config).putItem(self.tableName, self.partKey, self.userId, 'payload', payload)
         token = j['access_token']
         headers={'Authorization': 'Bearer {}'.format(token), 'login-customer-id': '{}'.format(self.mccId), 'developer-token': '{}'.format(self.developerToken)}
         return headers
