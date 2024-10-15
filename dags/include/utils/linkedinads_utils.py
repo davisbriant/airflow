@@ -5,7 +5,7 @@ import requests
 import simplejson as json
 import hashlib
 import sys
-import urllib
+from pprint import pprint
 
 class extractReports:
     def __init__(self, config, r_session):
@@ -24,22 +24,16 @@ class extractReports:
     def getToken(self):
         response = ddbUtils(self.config).getItem(self.tableName,self.partKey,self.userId)
         payload = response['Item']['payload']
-        # print(payload)
-        # sys.exit()
+        # pprint(payload)
         refresh_token = payload[self.personId]['token']['refresh_token']
-        print(refresh_token)
         headers = {"client_id": self.clientId, "client_secret": self.clientSecret, "Content-type": "application/w-www-form-urlencoded", "grant_type": "refresh_token", "refresh_token": refresh_token}
-        # print(headers)
         url = "https://www.linkedin.com/oauth/v2/accessToken"
         r = self.r_session.post(url, data=headers)
         j = r.json()
-        print(j)
-        # j['refresh_token'] = refresh_token
-        obj = {}
-        obj['token'] = j
-        obj['personInfo'] = payload[self.personId]
-        payload[self.personId] = obj
-        ddbUtils(self.config).putItem(self.tableName, self.partKey, self.personId, 'payload', payload)
+        # pprint(j)
+        payload[self.personId]['token'] = j
+        # pprint(payload)
+        ddbUtils(self.config).putItem(self.tableName, self.partKey, self.userId, 'payload', payload)
         token = j['access_token']
         headers={'Authorization': 'Bearer {}'.format(token)}
         return headers
