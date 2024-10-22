@@ -32,10 +32,13 @@ class extractReports:
         r = self.r_session.post(url, data=headers)
         j = r.json()
         # pprint(j)
-        payload[self.personId]['token'] = j
-        # pprint(payload)
-        ddbUtils(self.config).putItem(self.tableName, self.partKey, self.userId, 'payload', payload)
-        token = j['access_token']
+        if 'error' not in j:
+            payload[self.personId]['token'] = j
+            # pprint(payload)
+            ddbUtils(self.config).putItem(self.tableName, self.partKey, self.userId, 'payload', payload)
+            token = j['access_token']
+        else:
+            token = payload[self.personId]['token']['access_token']
         headers={'Authorization': 'Bearer {}'.format(token)}
         return headers
     def getAdAccounts(self, **kwargs):
