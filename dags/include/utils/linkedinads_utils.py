@@ -42,6 +42,7 @@ class extractReports:
         headers={'Authorization': 'Bearer {}'.format(token)}
         return headers
     def getAdAccounts(self, **kwargs):
+        interval = str(date.today())
         start = kwargs.get('start','start=0')
         fcontents = kwargs.get('fcontents','')
         accountIds = kwargs.get('accountIds', [])
@@ -49,7 +50,7 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        fname = '{}:{}:dims-accounts'.format(self.hashString(self.userId), self.personId)
+        fname = '{}:{}:dims-accounts:{}:{}'.format(self.hashString(self.userId), self.personId, interval, interval)
         if 'elements' in j:
             elements = j['elements']
             for item in elements:
@@ -81,14 +82,14 @@ class extractReports:
             s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
         return accountIds
     def getAdCampaignGroups(self, accountId, **kwargs):
+        interval = str(date.today())
         start = kwargs.get('start','start=0')
         fcontents = kwargs.get('fcontents','')
         campaignGroupIds = kwargs.get('campaignGroupIds', [])
         url = 'https://api.linkedin.com/v2/adCampaignGroupsV2?count=99&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(accountId, start)
-        fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
         r = self.r_session.get(url)
         j = r.json()
-        fname = '{}:{}:{}:dims-campaigngroups'.format(self.hashString(self.userId), self.personId, accountId)
+        fname = '{}:{}:{}:dims-campaigngroups:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
         if 'elements' in j:
             elements = j['elements']
             for item in elements:
@@ -119,6 +120,7 @@ class extractReports:
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
         return campaignGroupIds
     def getAdCampaigns(self, accountId, **kwargs):
+        interval = str(date.today())
         start = kwargs.get('start','start=0')
         fcontents = kwargs.get('fcontents','')
         campaignIds = kwargs.get('campaignIds', [])
@@ -126,7 +128,7 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        fname = '{}:{}:{}:dims-campaigns'.format(self.hashString(self.userId), self.personId, accountId)
+        fname = '{}:{}:{}:dims-campaigns:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
         if 'elements' in j:
             elements = j['elements']
             for item in elements:
@@ -168,12 +170,13 @@ class extractReports:
         j = r.json()
         return(j)
     def getAdCreatives(self, accountId, **kwargs):
+        interval = str(date.today())
         start = kwargs.get('start','start=0')
         fcontents = kwargs.get('fcontents','')
         creativeIds = kwargs.get('creativeIds',[])
         url = 'https://api.linkedin.com/v2/adCreativesV2?&count=99&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(accountId, start)
         print(url)
-        fname = '{}:{}:{}:match-tables-creatives'.format(self.hashString(self.userId), self.personId, accountId)
+        fname = '{}:{}:{}:dims-creatives:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
         r = self.r_session.get(url)
         j = r.json()
         if 'elements' in j:
@@ -228,7 +231,7 @@ class extractReports:
                                 start = link['href'].split('&')[-1]
                                 self.getAdCreatives(accountId, start=start, fcontents=fcontents, creativeIds=creativeIds)
                     else:
-                        s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
+                        s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
                 else:
                     s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
             else:

@@ -35,6 +35,7 @@ class extractReports:
         headers={'Authorization': 'Bearer {}'.format(token)}
         return headers
     def getAdAccounts(self, **kwargs):
+        interval = str(date.today())
         fcontents = kwargs.get('fcontents','')
         after = kwargs.get('after','after=')
         accountIds = kwargs.get('accountIds',[])
@@ -62,7 +63,7 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        fname = '{}:{}:dims-accounts'.format(self.hashString(self.userId), self.personId)
+        fname = '{}:{}:dims-accounts:{}:{}'.format(self.hashString(self.userId), self.personId, interval, interval)
         if 'data' in j:
             items = j['data']
             for item in items:
@@ -90,6 +91,7 @@ class extractReports:
             s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
         return accountIds
     def getAdCampaigns(self, accountId, **kwargs):
+        interval = str(date.today())
         fcontents = kwargs.get('fcontents','')
         after = kwargs.get('after','after=')
         campaignIds = kwargs.get('campaignIds',[])
@@ -126,7 +128,7 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        fname = '{}:{}:{}:dims-campaigns'.format(self.hashString(self.userId), self.personId, accountId)
+        fname = '{}:{}:{}:dims-campaigns:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
         if 'data' in j:
             items = j['data']
             for item in items:
@@ -154,6 +156,7 @@ class extractReports:
             s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
         return campaignIds
     def getAdSets(self, accountId, **kwargs):
+        interval = str(date.today())
         fcontents = kwargs.get('fcontents','')
         after = kwargs.get('after','after=')
         adsetIds = kwargs.get('adsetIds',[])
@@ -213,7 +216,7 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        fname = '{}:{}:{}:dims-adsets'.format(self.hashString(self.userId), self.personId, accountId)
+        fname = '{}:{}:{}:dims-adsets:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
         if 'data' in j:
             items = j['data']
             for item in items:
@@ -241,6 +244,7 @@ class extractReports:
             s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
         return adsetIds
     def getAds(self, accountId, **kwargs):
+        interval = str(date.today())
         fcontents = kwargs.get('fcontents','')
         after = kwargs.get('after','after=')
         adIds = kwargs.get('adIds',[])
@@ -273,7 +277,7 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        fname = '{}:{}:{}:dims-ads'.format(self.hashString(self.userId), self.personId, accountId)
+        fname = '{}:{}:{}:dims-ads:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
         if 'data' in j:
             items = j['data']
             for item in items:
@@ -301,6 +305,7 @@ class extractReports:
             s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
         return adIds
     def getCreatives(self, accountId, **kwargs):
+        interval = str(date.today())
         fcontents = kwargs.get('fcontents','')
         after = kwargs.get('after','after=')
         creativeIds = kwargs.get('creativeIds',[])
@@ -373,7 +378,7 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        fname = '{}:{}:{}:dims-creatives'.format(self.hashString(self.userId), self.personId, accountId)
+        fname = '{}:{}:{}:dims-creatives:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
         if 'data' in j:
             items = j['data']
             for item in items:
@@ -402,6 +407,7 @@ class extractReports:
             
         return creativeIds
     def getCustomConversions(self, accountId, **kwargs):
+        interval = str(date.today())
         fcontents = kwargs.get('fcontents','')
         after = kwargs.get('after','after=')
         conversionIds = kwargs.get('conversionIds',[])
@@ -431,7 +437,7 @@ class extractReports:
         print(url)
         r = self.r_session.get(url)
         j = r.json()
-        fname = '{}:{}:{}:dims-creatives'.format(self.hashString(self.userId), self.personId, accountId)
+        fname = '{}:{}:{}:dims-conversions:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
         # pprint(j)
         if 'data' in j:
             items = j['data']
