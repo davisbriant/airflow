@@ -7,6 +7,7 @@ import hashlib
 import sys
 import urllib
 from pprint import pprint
+from airflow import AirflowException
 
 class extractReports:
     def __init__(self, config, r_session):
@@ -28,7 +29,12 @@ class extractReports:
         refresh_token = payload[self.personId]['token']['access_token']
         url = 'https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id={}&client_secret={}&fb_exchange_token={}'.format(self.clientId, self.clientSecret, refresh_token)
         r = self.r_session.get(url)
-        j = r.json()
+        try:
+            j = r.json()
+        except Exception as e:
+            raise AirflowException(f"Error occurred processing API response {e}")
+        if 'error' in j:
+            raise AirflowException(f"API response returned error message: {j}")
         payload[self.personId]['token'] = j
         ddbUtils(self.config).putItem(self.tableName, self.partKey, self.userId, 'payload', payload)
         token = j['access_token']
@@ -36,8 +42,10 @@ class extractReports:
         return headers
     def getAdAccounts(self, **kwargs):
         interval = str(date.today())
-        fcontents = kwargs.get('fcontents','')
+        fcontents = ''
         after = kwargs.get('after','after=')
+        pageSize = 199
+        nextPageNum = kwargs.get('nextPageNum',0)
         accountIds = kwargs.get('accountIds',[])
         fields = [
           'id',
@@ -59,28 +67,29 @@ class extractReports:
           'capabilities'
         ]
         fields = ','.join(fields)
-        url = 'https://graph.facebook.com/v21.0/{}/adaccounts?limit=999&fields={}&{}'.format(self.personId, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/adaccounts?limit={}&fields={}&{}'.format(self.personId, pageSize, fields, after)
+        fname = '{}:{}:dims-accounts:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, interval, interval, pageSize, nextPageNum)
         print(url)
         r = self.r_session.get(url)
-        j = r.json()
-        fname = '{}:{}:dims-accounts:{}:{}'.format(self.hashString(self.userId), self.personId, interval, interval)
-        if 'data' in j:
+        try:
+            j = r.json()
+        except Exception as e:
+            raise AirflowException(f"Error occurred processing API response {e}")
+        if 'error' in j:
+            raise AirflowException(f"API response returned error message: {j['error']}")
+        elif 'data' in j:
             items = j['data']
             for item in items:
                 accountIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, url, item['id'], json.dumps(item))
                 fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
             if 'paging' in j:
                 if 'cursors' in j['paging']:
                     if 'after' in j['paging']['cursors']:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
-                        self.getAdAccounts(fcontents=fcontents, after=after, accountIds=accountIds)
-                    else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
-            else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/accounts/{}'.format(fname))
+                        nextPageNum += 1
+                        self.getAdAccounts(nextPageNum=nextPageNum, after=after, accountIds=accountIds)
         else:
             item = {}
             item['msg'] = 'no data'
@@ -92,8 +101,10 @@ class extractReports:
         return accountIds
     def getAdCampaigns(self, accountId, **kwargs):
         interval = str(date.today())
-        fcontents = kwargs.get('fcontents','')
+        fcontents = ''
+        nextPageNum = kwargs.get('nextPageNum',0)
         after = kwargs.get('after','after=')
+        pageSize = 199
         campaignIds = kwargs.get('campaignIds',[])
         fields = [
           'adlabels',
@@ -124,28 +135,29 @@ class extractReports:
             val = params[key]
             parameters.append('{}={}'.format(key, val))
         parameters = '&'.join(parameters)
-        url = 'https://graph.facebook.com/v21.0/{}/campaigns?limit=999&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/campaigns?limit={}&{}&fields={}&{}'.format(accountId, pageSize, parameters, fields, after)
         print(url)
+        fname = '{}:{}:{}:dims-campaigns:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval, pageSize, nextPageNum)
         r = self.r_session.get(url)
-        j = r.json()
-        fname = '{}:{}:{}:dims-campaigns:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
-        if 'data' in j:
+        try:
+            j = r.json()
+        except Exception as e:
+            raise AirflowException(f"Error occurred processing API response {e}")
+        if 'error' in j:
+            raise AirflowException(f"API response returned error message: {j['error']}")
+        elif 'data' in j:
             items = j['data']
             for item in items:
                 campaignIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                 fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
             if 'paging' in j:
                 if 'cursors' in j['paging']:
                     if 'after' in j['paging']['cursors']:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
-                        self.getAdCampaigns(accountId, fcontents=fcontents, after=after, campaignIds=campaignIds)
-                    else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
-            else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/campaigns/{}'.format(fname))
+                        nextPageNum += 1
+                        self.getAdCampaigns(accountId, nextPageNum=nextPageNum, after=after, campaignIds=campaignIds)
         else:
             item = {}
             item['msg'] = 'no data'
@@ -157,8 +169,10 @@ class extractReports:
         return campaignIds
     def getAdSets(self, accountId, **kwargs):
         interval = str(date.today())
-        fcontents = kwargs.get('fcontents','')
+        fcontents = ''
+        nextPageNum = kwargs.get('nextPageNum',0)
         after = kwargs.get('after','after=')
+        pageSize = 199
         adsetIds = kwargs.get('adsetIds',[])
         fields = [
           'name',
@@ -212,28 +226,29 @@ class extractReports:
             val = params[key]
             parameters.append('{}={}'.format(key, val))
         parameters = '&'.join(parameters)
-        url = 'https://graph.facebook.com/v21.0/{}/adsets?limit=999&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/adsets?limit={}&{}&fields={}&{}'.format(accountId, pageSize, parameters, fields, after)
         print(url)
+        fname = '{}:{}:{}:dims-adsets:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval, pageSize, nextPageNum)
         r = self.r_session.get(url)
-        j = r.json()
-        fname = '{}:{}:{}:dims-adsets:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
-        if 'data' in j:
+        try:
+            j = r.json()
+        except Exception as e:
+            raise AirflowException(f"Error occurred processing API response {e}")
+        if 'error' in j:
+            raise AirflowException(f"API response returned error message: {j['error']}")
+        elif 'data' in j:
             items = j['data']
             for item in items:
                 adsetIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                 fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
             if 'paging' in j:
                 if 'cursors' in j['paging']:
                     if 'after' in j['paging']['cursors']:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
-                        self.getAdSets(accountId, fcontents=fcontents, after=after, adsetIds=adsetIds)
-                    else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
-            else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/adsets/{}'.format(fname))
+                        nextPageNum += 1
+                        self.getAdSets(accountId, nextPageNum=nextPageNum, after=after, adsetIds=adsetIds)
         else:
             item = {}
             item['msg'] = 'no data'
@@ -245,8 +260,10 @@ class extractReports:
         return adsetIds
     def getAds(self, accountId, **kwargs):
         interval = str(date.today())
-        fcontents = kwargs.get('fcontents','')
+        fcontents = ''
+        nextPageNum = kwargs.get('nextPageNum',0)
         after = kwargs.get('after','after=')
+        pageSize = 199
         adIds = kwargs.get('adIds',[])
         fields = [
           'name',
@@ -273,28 +290,29 @@ class extractReports:
             val = params[key]
             parameters.append('{}={}'.format(key, val))
         parameters = '&'.join(parameters)
-        url = 'https://graph.facebook.com/v21.0/{}/ads?limit=249&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/ads?limit={}&{}&fields={}&{}'.format(accountId, pageSize, parameters, fields, after)
         print(url)
+        fname = '{}:{}:{}:dims-ads:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval, pageSize, nextPageNum)
         r = self.r_session.get(url)
-        j = r.json()
-        fname = '{}:{}:{}:dims-ads:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
-        if 'data' in j:
+        try:
+            j = r.json()
+        except Exception as e:
+            raise AirflowException(f"Error occurred processing API response {e}")
+        if 'error' in j:
+            raise AirflowException(f"API response returned error message: {j['error']}")
+        elif 'data' in j:
             items = j['data']
             for item in items:
                 adIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                 fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
             if 'paging' in j:
                 if 'cursors' in j['paging']:
                     if 'after' in j['paging']['cursors']:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
-                        self.getAds(accountId, fcontents=fcontents, after=after, adsetIds=adIds)
-                    else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
-            else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/ads/{}'.format(fname))
+                        nextPageNum += 1
+                        self.getAds(accountId, nextPageNum=nextPageNum, after=after, adsetIds=adIds)
         else:
             item = {}
             item['msg'] = 'no data'
@@ -306,8 +324,10 @@ class extractReports:
         return adIds
     def getCreatives(self, accountId, **kwargs):
         interval = str(date.today())
-        fcontents = kwargs.get('fcontents','')
+        fcontents = ''
+        nextPageNum = kwargs.get('nextPageNum',0)
         after = kwargs.get('after','after=')
+        pageSize = 199
         creativeIds = kwargs.get('creativeIds',[])
         fields = [
           'id',
@@ -374,28 +394,29 @@ class extractReports:
             val = params[key]
             parameters.append('{}={}'.format(key, val))
         parameters = '&'.join(parameters)
-        url = 'https://graph.facebook.com/v21.0/{}/adcreatives?limit=249&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/adcreatives?limit={}&{}&fields={}&{}'.format(accountId, pageSize, parameters, fields, after)
         print(url)
+        fname = '{}:{}:{}:dims-creatives:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval, pageSize, nextPageNum)
         r = self.r_session.get(url)
-        j = r.json()
-        fname = '{}:{}:{}:dims-creatives:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
-        if 'data' in j:
+        try:
+            j = r.json()
+        except Exception as e:
+            raise AirflowException(f"Error occurred processing API response {e}")
+        if 'error' in j:
+            raise AirflowException(f"API response returned error message: {j['error']}")
+        elif 'data' in j:
             items = j['data']
             for item in items:
                 creativeIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                 fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
             if 'paging' in j:
                 if 'cursors' in j['paging']:
                     if 'after' in j['paging']['cursors']:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
-                        self.getCreatives(accountId, fcontents=fcontents, after=after, creativeIds=creativeIds)
-                    else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
-            else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/creatives/{}'.format(fname))
+                        nextPageNum += 1
+                        self.getCreatives(accountId, nextPageNum=nextPageNum, after=after, creativeIds=creativeIds)
         else: 
             item = {}
             item['msg'] = 'no data'
@@ -408,8 +429,10 @@ class extractReports:
         return creativeIds
     def getCustomConversions(self, accountId, **kwargs):
         interval = str(date.today())
-        fcontents = kwargs.get('fcontents','')
+        fcontents = ''
+        nextPageNum = kwargs.get('nextPageNum',0)
         after = kwargs.get('after','after=')
+        pageSize = 199
         conversionIds = kwargs.get('conversionIds',[])
         fields = [
           'id',
@@ -433,29 +456,29 @@ class extractReports:
           'rule'
         ]
         fields = ','.join(fields)
-        url = 'https://graph.facebook.com/v21.0/{}/customconversions?limit=10&fields={}&{}'.format(accountId, fields, after)
+        url = 'https://graph.facebook.com/v21.0/{}/customconversions?limit={}&fields={}&{}'.format(accountId, pageSize, fields, after)
         print(url)
+        fname = '{}:{}:{}:dims-conversions:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval, pageSize, nextPageNum)
         r = self.r_session.get(url)
-        j = r.json()
-        fname = '{}:{}:{}:dims-conversions:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval)
-        # pprint(j)
-        if 'data' in j:
+        try:
+            j = r.json()
+        except Exception as e:
+            raise AirflowException(f"Error occurred processing API response {e}")
+        if 'error' in j:
+            raise AirflowException(f"API response returned error message: {j['error']}")
+        elif 'data' in j:
             items = j['data']
             for item in items:
                 conversionIds.append(item['id'])
                 row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                 fcontents += row
+            s3Utils(self.config).writeToS3(fcontents, 'dims/conversions/{}'.format(fname))
             if 'paging' in j:
                 if 'cursors' in j['paging']:
                     if 'after' in j['paging']['cursors']:
                         after = 'after={}'.format(j['paging']['cursors']['after'])
-                        self.getCustomConversions(accountId, fcontents=fcontents, after=after, conversionIds=conversionIds)
-                    else:
-                        s3Utils(self.config).writeToS3(fcontents, 'dims/conversions/{}'.format(fname))
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'dims/conversions/{}'.format(fname))
-            else:
-                s3Utils(self.config).writeToS3(fcontents, 'dims/conversions/{}'.format(fname))
+                        nextPageNum += 1
+                        self.getCustomConversions(accountId, nextPageNum=nextPageNum, after=after, conversionIds=conversionIds)
         else:
             item = {}
             item['msg'] = 'no data'
@@ -467,8 +490,10 @@ class extractReports:
         return conversionIds
     def getAdPerformanceReport(self, accountId):
         def doGetAdPerformanceReport(accountId, startDate, endDate, **kwargs):
-            fcontents = kwargs.get('fcontents','')
+            fcontents = ''
+            nextPageNum = kwargs.get('nextPageNum',0)
             after = kwargs.get('after','after=')
+            pageSize = 999999
             fields = [
                 'campaign_id',
                 'campaign_name',
@@ -479,21 +504,21 @@ class extractReports:
                 'date_start',
                 'date_stop',
                 'impressions',
-                'labels',
+                # 'labels',
                 'objective',
                 'clicks',
                 'outbound_clicks',
                 'spend',
                 'conversions',
                 'actions',
-                'ad_format_asset', 
-                'body_asset', 
-                'call_to_action_asset', 
-                'description_asset', 
-                'image_asset', 
-                'link_url_asset', 
-                'title_asset', 
-                'video_asset', 
+                # 'ad_format_asset', 
+                # 'body_asset', 
+                # 'call_to_action_asset', 
+                # 'description_asset', 
+                # 'image_asset', 
+                # 'link_url_asset', 
+                # 'title_asset', 
+                # 'video_asset', 
             ]
             fields = ','.join(fields)
             params = {
@@ -504,25 +529,25 @@ class extractReports:
                 'level': 'ad',
                 'action_report_time': 'conversion',
                 'breakdowns': [ 
-                    'ad_format_asset', 
-                    'age', 
-                    'body_asset', 
-                    'call_to_action_asset', 
-                    'country', 
-                    'description_asset', 
-                    'gender', 
-                    'image_asset', 
-                    'impression_device', 
-                    'link_url_asset', 
-                    'product_id', 
-                    'region', 
-                    'title_asset', 
-                    'video_asset', 
-                    'dma', 
-                    'frequency_value', 
-                    'hourly_stats_aggregated_by_advertiser_time_zone', 
-                    'hourly_stats_aggregated_by_audience_time_zone', 
-                    'place_page_id', 
+                    # 'ad_format_asset', 
+                    # 'age', 
+                    # 'body_asset', 
+                    # 'call_to_action_asset', 
+                    # 'country', 
+                    # 'description_asset', 
+                    # 'gender', 
+                    # 'image_asset', 
+                    # 'impression_device', 
+                    # 'link_url_asset', 
+                    # 'product_id', 
+                    # 'region', 
+                    # 'title_asset', 
+                    # 'video_asset', 
+                    # 'dma', 
+                    # 'frequency_value', 
+                    # 'hourly_stats_aggregated_by_advertiser_time_zone', 
+                    # 'hourly_stats_aggregated_by_audience_time_zone', 
+                    # 'place_page_id', 
                     'publisher_platform',
                     'platform_position', 
                     'device_platform'
@@ -541,28 +566,28 @@ class extractReports:
                 val = params[key]
                 parameters.append('{}={}'.format(key, val))
             parameters = '&'.join(parameters)
-            url = 'https://graph.facebook.com/v21.0/{}/insights?limit=199&level=ad&{}&fields={}&{}'.format(accountId, parameters, fields, after)
+            url = 'https://graph.facebook.com/v21.0/{}/insights?limit={}&level=ad&{}&fields={}&{}'.format(accountId, pageSize, parameters, fields, after)
             print(url)
+            fname = '{}:{}:{}:facts-ads:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, startDate, endDate, pageSize, nextPageNum)
             r = self.r_session.get(url)
-            j = r.json()
-            fname = '{}:{}:{}:facts-ads:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, startDate, endDate)
-            # pprint(j)
-            if 'data' in j:
+            try:
+                j = r.json()
+            except Exception as e:
+                raise AirflowException(f"Error occurred processing API response {e}")
+            if 'error' in j:
+                raise AirflowException(f"API response returned error message: {j['error']}")
+            elif 'data' in j:
                 items = j['data']
                 for item in items:
                     row = "{}\t{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, item['id'], json.dumps(item))
                     fcontents += row
+                s3Utils(self.config).writeToS3(fcontents, 'facts/ads/{}'.format(fname))
                 if 'paging' in j:
                     if 'cursors' in j['paging']:
                         if 'after' in j['paging']['cursors']:
                             after = 'after={}'.format(j['paging']['cursors']['after'])
-                            doGetAdPerformanceReport(accountId, startDate, endDate, fcontents=fcontents, after=after)
-                        else:
-                            s3Utils(self.config).writeToS3(fcontents, 'facts/ads/{}'.format(fname))
-                    else:
-                        s3Utils(self.config).writeToS3(fcontents, 'facts/ads/{}'.format(fname))
-                else:
-                    s3Utils(self.config).writeToS3(fcontents, 'facts/ads/{}'.format(fname))
+                            nextPageNum += 1
+                            doGetAdPerformanceReport(accountId, startDate, endDate, pageSize, nextPageNum=nextPageNum, after=after)
             else:
                 item = {}
                 item['msg'] = 'no data'
