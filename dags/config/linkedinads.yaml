@@ -1,0 +1,29 @@
+s3:
+    bucket: "arkestral"
+    prefix: "airflow/clients/arkestral/linkedin/reports/"
+    
+aws:
+    region: "us-west-2"
+    keyId: "XXXXXXXXX"
+    secretAccessKey: "XXXXXXXXXXXX"
+
+athena:
+    s3_staging_dir: "s3://XXXXXXXX/athena/results/brian/"
+
+linkedin:
+    attWindow: 90
+    clientId: "XXXXXXXX"
+    clientSecret: "XXXXXXXX"
+    tableName: "idm_linkedin"
+    personId: "XXXXXXXX"
+    userId: "XXXXXXXXXXX"
+    partKey: "userId"
+
+alerting:
+    emails: ["XXXXXX@XXXX.XXXX","XXXXXXX@XXXXXXXX.XXXXX"]
+
+dynamodb:
+    region: "us-west-2"
+    tableName: "idm_arkestral"
+    partKey: "userId"
+
