@@ -28,38 +28,43 @@ class extractReports:
         payload = response['Item']['payload']
         # pprint(payload)
         refresh_token = payload[self.personId]['token']['refresh_token']
-        headers = {"client_id": self.clientId, "client_secret": self.clientSecret, "Content-type": "application/w-www-form-urlencoded", "grant_type": "refresh_token", "refresh_token": refresh_token}
+        headers = {"client_id": self.clientId, "client_secret": self.clientSecret, "Content-type": "application/json", "grant_type": "refresh_token", "refresh_token": refresh_token}
         url = "https://www.linkedin.com/oauth/v2/accessToken"
         r = self.r_session.post(url, data=headers)
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
-        if 'error' in j:
+            raise AirflowException(f"Error occurred processing API response: {e}")
+        if 'errorDetailType' in j or 'error' in j:
             raise AirflowException(f"API response returned error message: {j}")
-            # token = payload[self.personId]['token']['access_token']
-        payload[self.personId]['token'] = j
-        # pprint(payload)
-        ddbUtils(self.config).putItem(self.tableName, self.partKey, self.userId, 'payload', payload)
-        token = j['access_token']
-        headers={'Authorization': 'Bearer {}'.format(token)}
+            token = payload[self.personId]['token']['access_token']
+        else:
+            payload[self.personId]['token'] = j
+            # pprint(payload)
+            ddbUtils(self.config).putItem(self.tableName, self.partKey, self.userId, 'payload', payload)
+            token = j['access_token']
+        headers={'Authorization': 'Bearer {}'.format(token),  "LinkedIn-Version": "202411", "Content-type": "application/json", "X-RestLi-Protocol-Version": "2.0.0"}
         return headers
     def getAdAccounts(self, **kwargs):
         interval = str(date.today())
-        start = kwargs.get('start','start=0')
         fcontents = ''
         accountIds = kwargs.get('accountIds', [])
-        pageSize = 99
+        pageSize = 100
+        nextPageToken = kwargs.get('nextPageToken',None)
         nextPageNum = kwargs.get('nextPageNum',0)
-        url = 'https://api.linkedin.com/v2/adAccountsV2?count={}&q=search&search.type.values[0]=BUSINESS&search.type.values[1]=ENTERPRISE&sort.field=ID&sort.order=DESCENDING&{}'.format(pageSize, start)
+        if nextPageToken:
+            url = 'https://api.linkedin.com/rest/adAccounts?pageSize={}&q=search&search=(type:(values:List(BUSINESS,ENTERPRISE)))&sortOrder=DESCENDING&pageToken={}'.format(pageSize, nextPageToken)
+        else:
+            url = 'https://api.linkedin.com/rest/adAccounts?pageSize={}&q=search&search=(type:(values:List(BUSINESS,ENTERPRISE)))&sortOrder=DESCENDING'.format(pageSize)
         print(url)
         fname = '{}:{}:dims-accounts:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, interval, interval, pageSize, nextPageNum)
         r = self.r_session.get(url)
         try:
             j = r.json()
+            # pprint(j)
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
-        if 'error' in j:
+            raise AirflowException(f"Error occurred processing API response: {e}")
+        if 'errorDetailType' in j or 'code' in j:
             raise AirflowException(f"API response returned error message: {j}")
         elif 'elements' in j:
             elements = j['elements']
@@ -69,15 +74,11 @@ class extractReports:
                 # print(row)
                 fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
-            if 'paging' in j:
-                if 'links' in j['paging']:
-                    links = j['paging']['links']
-                    if any(link['rel'] == 'next' for link in links):
-                        for link in links:
-                            if link['rel'] == 'next':
-                                start = link['href'].split('&')[-1]
-                                nextPageNum += 1
-                                self.getAdAccounts(start=start, nextPageNum=nextPageNum, accountIds=accountIds)
+            if 'metadata' in j:
+                if 'nextPageToken' in j['metadata']:
+                    nextPageToken = j['metadata']['nextPageToken']
+                    nextPageNum += 1
+                    self.getAdAccounts(accountId, nextPageNum=nextPageNum, campaignIds=accountIds, nextPageToken=nextPageToken)
         else:
             item = {}
             item['msg'] = 'no data'
@@ -89,20 +90,23 @@ class extractReports:
         return accountIds
     def getAdCampaignGroups(self, accountId, **kwargs):
         interval = str(date.today())
-        start = kwargs.get('start','start=0')
         fcontents = ''
         campaignGroupIds = kwargs.get('campaignGroupIds', [])
-        pageSize = 99
+        pageSize = 100
+        nextPageToken = kwargs.get('nextPageToken',None)
         nextPageNum = kwargs.get('nextPageNum',0)
-        url = 'https://api.linkedin.com/v2/adCampaignGroupsV2?count={}&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(pageSize, accountId, start)
+        if nextPageToken:
+            url = 'https://api.linkedin.com/rest/adAccounts/{}/adCampaignGroups?pageSize={}&q=search&search=(status:(values:List(ACTIVE,ARCHIVED,CANCELED,DRAFT,PAUSED,PENDING_DELETION,REMOVED)))&sortOrder=DESCENDINGpageToken={}'.format(accountId, pageSize, nextPageToken)
+        else:
+            url = 'https://api.linkedin.com/rest/adAccounts/{}/adCampaignGroups?pageSize={}&q=search&search=(status:(values:List(ACTIVE,ARCHIVED,CANCELED,DRAFT,PAUSED,PENDING_DELETION,REMOVED)))&sortOrder=DESCENDING'.format(accountId, pageSize)
         print(url)
         fname = '{}:{}:{}:dims-campaigngroups:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval, pageSize, nextPageNum)
         r = self.r_session.get(url)
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
-        if 'error' in j:
+            raise AirflowException(f"Error occurred processing API response: {e}")
+        if 'errorDetailType' in j or 'code' in j:
             raise AirflowException(f"API response returned error message: {j}")
         elif 'elements' in j:
             elements = j['elements']
@@ -111,15 +115,11 @@ class extractReports:
                 row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, item['id'], url, json.dumps(item))
                 fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
-            if 'paging' in j:
-                if 'links' in j['paging']:
-                    links = j['paging']['links']
-                    if any(link['rel'] == 'next' for link in links):
-                        for link in links:
-                            if link['rel'] == 'next':
-                                start = link['href'].split('&')[-1]
-                                nextPageNum += 1
-                                self.getAdCampaignGroups(accountId, start=start, nextpageNum=nextPageNum, campaignGroupIds=campaignGroupIds)
+            if 'metadata' in j:
+                if 'nextPageToken' in j['metadata']:
+                    nextPageToken = j['metadata']['nextPageToken']
+                    nextPageNum += 1
+                    self.getAdCampaignGroups(accountId, nextPageNum=nextPageNum, campaignIds=campaignGroupIds, nextPageToken=nextPageToken)
         else:
             item = {}
             item['msg'] = 'no data'
@@ -131,20 +131,24 @@ class extractReports:
         return campaignGroupIds
     def getAdCampaigns(self, accountId, **kwargs):
         interval = str(date.today())
-        start = kwargs.get('start','start=0')
         fcontents = ''
         campaignIds = kwargs.get('campaignIds', [])
-        pageSize = 99
+        pageSize = 100
+        nextPageToken = kwargs.get('nextPageToken',None)
         nextPageNum = kwargs.get('nextPageNum',0)
-        url = 'https://api.linkedin.com/v2/adCampaignsV2?count={}&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(pageSize, accountId, start)
+        if nextPageToken:
+            url = 'https://api.linkedin.com/rest/adAccounts/{}/adCampaigns?pageSize={}&q=search&search=(status:(values:List(ACTIVE,ARCHIVED,CANCELED,DRAFT,PAUSED,PENDING_DELETION,REMOVED,COMPLETED)))&sortOrder=DESCENDING&pageToken={}'.format(accountId, pageSize, nextPageToken)
+        else:
+            url = 'https://api.linkedin.com/rest/adAccounts/{}/adCampaigns?pageSize={}&q=search&search=(status:(values:List(ACTIVE,ARCHIVED,CANCELED,DRAFT,PAUSED,PENDING_DELETION,REMOVED,COMPLETED)))&sortOrder=DESCENDING'.format(accountId, pageSize)
         print(url)
         fname = '{}:{}:{}:dims-campaigns:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval, pageSize, nextPageNum)
         r = self.r_session.get(url)
         try:
             j = r.json()
+            # print(j)
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
-        if 'error' in j:
+            raise AirflowException(f"Error occurred processing API response: {e}")
+        if 'errorDetailType' in j or 'code' in j:
             raise AirflowException(f"API response returned error message: {j}")
         elif 'elements' in j:
             elements = j['elements']
@@ -154,15 +158,11 @@ class extractReports:
                 # print(row)
                 fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigns/{}'.format(fname))
-            if 'paging' in j:
-                if 'links' in j['paging']:
-                    links = j['paging']['links']
-                    if any(link['rel'] == 'next' for link in links):
-                        for link in links:
-                            if link['rel'] == 'next':
-                                start = link['href'].split('&')[-1]
-                                nextPageNum += 1
-                                self.getAdCampaigns(accountId, start=start, nextPageNum=nextPageNum, campaignIds=campaignIds)
+            if 'metadata' in j:
+                if 'nextPageToken' in j['metadata']:
+                    nextPageToken = j['metadata']['nextPageToken']
+                    nextPageNum += 1
+                    self.getAdCampaigns(accountId, nextPageNum=nextPageNum, campaignIds=campaignIds, nextPageToken=nextPageToken)
         else:
             item = {}
             item['msg'] = 'no data'
@@ -173,97 +173,62 @@ class extractReports:
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigs/{}'.format(fname))
         return campaignIds
     def getUgcPost(self, shareUrn):
-        url = 'https://api.linkedin.com/v2/ugcPosts/{}'.format(urllib.parse.quote(shareUrn))
+        url = 'https://api.linkedin.com/rest/posts/{}'.format(urllib.parse.quote(shareUrn))
         print(url)
         r = self.r_session.get(url)
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
-        if 'error' in j:
+            raise AirflowException(f"Error occurred processing API response: {e}")
+        if 'errorDetailType' in j:
             raise AirflowException(f"API response returned error message: {j}")
         return(j)
     def getAdInmailContent(self, adInMailContentId):
-        url = 'https://api.linkedin.com/v2/adInMailContentsV2/{}'.format(urllib.parse.quote(adInMailContentId.split(':')[-1]))
+        url = 'https://api.linkedin.com/rest/adInMailContents/{}'.format(urllib.parse.quote(adInMailContentId.split(':')[-1]))
         print(url)
         r = self.r_session.get(url)
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
-        if 'error' in j:
+            raise AirflowException(f"Error occurred processing API response: {e}")
+        if 'errorDetailType' in j:
             raise AirflowException(f"API response returned error message: {j}")
         return(j)
+    
     def getAdCreatives(self, accountId, **kwargs):
         interval = str(date.today())
-        start = kwargs.get('start','start=0')
         fcontents = ''
         creativeIds = kwargs.get('creativeIds',[])
-        pageSize = 99
+        pageSize = 100
+        nextPageToken = kwargs.get('nextPageToken',None)
         nextPageNum = kwargs.get('nextPageNum',0)
-        url = 'https://api.linkedin.com/v2/adCreativesV2?&count={}&q=search&search.account.values[0]=urn:li:sponsoredAccount:{}&sort.field=ID&sort.order=DESCENDING&{}'.format(pageSize, accountId, start)
+        if nextPageToken:
+            url = 'https://api.linkedin.com/rest/adAccounts/{}/creatives?pageSize={}&campaigns=List()&q=criteria&sortOrder=DESCENDING&pageToken={}'.format(accountId, pageSize, nextPageToken)
+        else:
+            url = 'https://api.linkedin.com/rest/adAccounts/{}/creatives?pageSize={}&campaigns=List()&q=criteria&sortOrder=DESCENDING'.format(accountId, pageSize)
         print(url)
         fname = '{}:{}:{}:dims-creatives:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, interval, interval, pageSize, nextPageNum)
         r = self.r_session.get(url)
         try:
             j = r.json()
+            # pprint(j)
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
-        if 'error' in j:
+            raise AirflowException(f"Error occurred processing API response: {e}")
+        if 'errorDetailType' in j or 'code' in j:
             raise AirflowException(f"API response returned error message: {j}")
         elif 'elements' in j:
             elements = j['elements']
             for item in elements:
-                creativeIds.append(item['id'])
-                creativeType = item['type']
-                # print(creativeType)
+                creativeIds.append(item['id'].split(':')[-1])
                 creativeId = item['id']
-                if creativeType == 'TEXT_AD':
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-                elif creativeType == 'SPOTLIGHT_V2':
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-                elif creativeType == 'SPONSORED_STATUS_UPDATE':
-                    urn = item['variables']['data']['com.linkedin.ads.SponsoredUpdateCreativeVariables']['activity']
-                    post = self.getUgcPost(urn)
-                    item['post'] = post
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-                elif creativeType == 'SPONSORED_VIDEO':
-                    urn = item['variables']['data']['com.linkedin.ads.SponsoredVideoCreativeVariables']['userGeneratedContentPost']
-                    post = self.getUgcPost(urn)
-                    item['post'] = post
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-                elif creativeType == 'SPONSORED_INMAILS':
-                    adInMailContentId = item['variables']['data']['com.linkedin.ads.SponsoredInMailCreativeVariables']['content']
-                    message = self.getAdInmailContent(adInMailContentId)
-                    item['message'] = message
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-                elif creativeType == 'SPONSORED_MESSAGE':
-                    adInMailContentId = item['variables']['data']['com.linkedin.ads.SponsoredInMailCreativeVariables']['content']
-                    message = self.getAdInmailContent(adInMailContentId)
-                    item['message'] = message
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-                elif creativeType == 'SPONSORED_UPDATE_CAROUSEL':
-                    urn = item['variables']['data']['com.linkedin.ads.SponsoredUpdateCarouselCreativeVariables']['activity']
-                    post = self.getUgcPost(urn)
-                    item['post'] = post
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-                elif creativeType == 'FOLLOW_COMPANY_V2':
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-                elif creativeType == 'JOBS_V2':
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
-                else:
-                    row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
+                row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, creativeId, url, json.dumps(item))
                 fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
-            if 'paging' in j:
-                if 'links' in j['paging']:
-                    links = j['paging']['links']
-                    if any(link['rel'] == 'next' for link in links):
-                        for link in links:
-                            if link['rel'] == 'next':
-                                start = link['href'].split('&')[-1]
-                                nextPageNum += 1
-                                self.getAdCreatives(accountId, start=start, nextPageNum=nextPageNum, creativeIds=creativeIds)
+            if 'metadata' in j:
+                if 'nextPageToken' in j['metadata']:
+                    nextPageToken = j['metadata']['nextPageToken']
+                    nextPageNum += 1
+                    self.getAdCreatives(accountId, nextPageNum=nextPageNum, creativeIds=creativeIds, nextPageToken=nextPageToken)
         else:
             item = {}
             item['msg'] = 'no data'
@@ -273,21 +238,20 @@ class extractReports:
                 fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/creatives/{}'.format(fname))
         return creativeIds
+
     def getCreativePerformanceReport(self, accountId):
         def doGetCreativePerformanceReport(accountId, reportStart, reportEnd, startDate, endDate, **kwargs):
-            start = kwargs.get('start','start=0')
             fcontents = kwargs.get('fcontents','')
-            pageSize = 999999
-            nextPageNum = kwargs.get('nextPageNum',0)
-            url = 'https://api.linkedin.com/v2/adAnalyticsV2?count={}&{}&q=analytics&{}&{}&timeGranularity=DAILY&accounts=urn%3Ali%3AsponsoredAccount%3A{}&pivot=CREATIVE&fields=dateRange,impressions,clicks,landingPageClicks,companyPageClicks,totalEngagements,costInUsd,externalWebsiteConversions,externalWebsitePostClickConversions,externalWebsitePostViewConversions,oneClickLeads,pivot,pivotValue'.format(pageSize, start, reportStart, reportEnd, accountId)
+            url = 'https://api.linkedin.com/rest/adAnalytics?q=analytics&{}&{}&timeGranularity=DAILY&accounts=urn%3Ali%3AsponsoredAccount%3A{}&pivot=CREATIVE&fields=dateRange,impressions,clicks,landingPageClicks,companyPageClicks,totalEngagements,costInUsd,externalWebsiteConversions,externalWebsitePostClickConversions,externalWebsitePostViewConversions,oneClickLeads,pivot,pivotValue'.format(reportStart, reportEnd, accountId)
             print(url)
-            fname = '{}:{}:{}:facts-creatives:{}:{}:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, startDate, endDate, pageSize, nextPageNum)
+            fname = '{}:{}:{}:facts-creatives:{}:{}'.format(self.hashString(self.userId), self.personId, accountId, startDate, endDate)
             r = self.r_session.get(url)
             try:
                 j = r.json()
+                # print(j)
             except Exception as e:
-                raise AirflowException(f"Error occurred processing API response {e}")
-            if 'error' in j:
+                raise AirflowException(f"Error occurred processing API response: {e}")
+            if 'errorDetailType' in j:
                 raise AirflowException(f"API response returned error message: {j}")
             elif 'elements' in j:
                 elements = j['elements']
@@ -295,15 +259,6 @@ class extractReports:
                     row = "{}\t{}\t{}\t{}\t{}\n".format(self.hashString(self.userId), self.personId, accountId, url, json.dumps(item))
                     fcontents += row
                 s3Utils(self.config).writeToS3(fcontents, 'facts/creatives/{}'.format(fname))
-                if 'paging' in j:
-                    if 'links' in j['paging']:
-                        links = j['paging']['links']
-                        if any(link['rel'] == 'next' for link in links):
-                            for link in links:
-                                if link['rel'] == 'next':
-                                    start = link['href'].split('&')[-1]
-                                    nextPageNum += 1
-                                    doGetCreativePerformanceReport(accountId, reportStart, reportEnd, startDate, endDate, start=start, nextPageNum=nextPageNum)
             else:
                 item = {}
                 item['msg'] = 'no data'

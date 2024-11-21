@@ -54,7 +54,7 @@ def linkedinads_extract():
         response = extractReports.getAdCampaigns(accountId)
         return response
     @task(task_id="getAdCreatives", retries=0)
-    def getCreatives(accountId):
+    def getAdCreatives(accountId):
         response = extractReports.getAdCreatives(accountId)
         return response
     @task(task_id="getCreativePerformanceReport", retries=0)
@@ -66,7 +66,7 @@ def linkedinads_extract():
     adAccounts = getAdAccounts()
     adCampaignGroups = getAdCampaignGroups.expand(accountId=adAccounts)
     adCampaigns = getAdCampaigns.expand(accountId=adAccounts)
-    ads = getCreatives.expand(accountId=adAccounts)
+    adCreatives = getAdCreatives.expand(accountId=adAccounts)
     creativePerformanceReport = getCreativePerformanceReport.expand(accountId=adAccounts)
     
 linkedinads_extract = linkedinads_extract()
