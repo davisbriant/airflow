@@ -32,7 +32,7 @@ class extractReports:
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
+            raise AirflowException(f"Error occurred processing API response: {e}")
         if 'error' in j:
             raise AirflowException(f"API response returned error message: {j}")
         payload[self.personId]['token'] = j
@@ -74,7 +74,7 @@ class extractReports:
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
+            raise AirflowException(f"Error occurred processing API response: {e}")
         if 'error' in j:
             raise AirflowException(f"API response returned error message: {j['error']}")
         elif 'data' in j:
@@ -142,7 +142,7 @@ class extractReports:
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
+            raise AirflowException(f"Error occurred processing API response: {e}")
         if 'error' in j:
             raise AirflowException(f"API response returned error message: {j['error']}")
         elif 'data' in j:
@@ -233,7 +233,7 @@ class extractReports:
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
+            raise AirflowException(f"Error occurred processing API response: {e}")
         if 'error' in j:
             raise AirflowException(f"API response returned error message: {j['error']}")
         elif 'data' in j:
@@ -297,7 +297,7 @@ class extractReports:
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
+            raise AirflowException(f"Error occurred processing API response: {e}")
         if 'error' in j:
             raise AirflowException(f"API response returned error message: {j['error']}")
         elif 'data' in j:
@@ -401,7 +401,7 @@ class extractReports:
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
+            raise AirflowException(f"Error occurred processing API response: {e}")
         if 'error' in j:
             raise AirflowException(f"API response returned error message: {j['error']}")
         elif 'data' in j:
@@ -463,7 +463,7 @@ class extractReports:
         try:
             j = r.json()
         except Exception as e:
-            raise AirflowException(f"Error occurred processing API response {e}")
+            raise AirflowException(f"Error occurred processing API response: {e}")
         if 'error' in j:
             raise AirflowException(f"API response returned error message: {j['error']}")
         elif 'data' in j:
@@ -573,7 +573,7 @@ class extractReports:
             try:
                 j = r.json()
             except Exception as e:
-                raise AirflowException(f"Error occurred processing API response {e}")
+                raise AirflowException(f"Error occurred processing API response: {e}")
             if 'error' in j:
                 raise AirflowException(f"API response returned error message: {j['error']}")
             elif 'data' in j:
