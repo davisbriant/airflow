@@ -17,7 +17,7 @@ with open(config_file_path) as config_file:
 default_args = {
     'owner': 'airflow'
     ,'depends_on_past': False
-    ,'start_date': airflow.utils.dates.days_ago(2)
+    ,'start_date': pendulum.today('UTC').add(days=-2)
     ,'email': config['alerting']['emails']
     ,'email_on_failure': True
     ,'email_on_retry': False
@@ -34,8 +34,8 @@ headers = linkedinads_utils.extractReports(config, r_session).getToken()
 r_session.headers.update(headers)
 extractReports = linkedinads_utils.extractReports(config, r_session)
 
-@dag(schedule_interval="@hourly", catchup=False, default_args=default_args)
-# @dag(schedule_interval=None, catchup=False, default_args=default_args)
+# @dag(schedule="@hourly", catchup=False, default_args=default_args)
+@dag(schedule=None, catchup=False, default_args=default_args)
 def linkedinads_extract():
     @task(task_id="getToken")
     def getToken():
