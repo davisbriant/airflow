@@ -131,24 +131,6 @@ class extractReports:
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
         return campaignGroupIds
 
-    def taskHandler(self, taskType, accountIds):
-        if taskType == 'getAdCampaignGroups':
-            for accountId in accountIds:
-                print(accountId)
-                self.getAdCampaignGroups(accountId)
-        if taskType == 'getAdCampaigns':
-            for accountId in accountIds:
-                print(accountId)
-                self.getAdCampaigns(accountId)
-        if taskType == 'getAdCreatives':
-            for accountId in accountIds:
-                print(accountId)
-                self.getAdCreatives(accountId)
-        if taskType == 'getCreativePerformanceReport':
-            for accountId in accountIds:
-                print(accountId)
-                self.getAdCreatives(accountId)
-
     def getAdCampaigns(self, accountId, **kwargs):
         campaignIds = kwargs.get('campaignIds', [])
         interval = str(date.today())

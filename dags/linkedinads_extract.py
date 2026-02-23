@@ -34,8 +34,8 @@ headers = linkedinads_utils.extractReports(config, r_session).getToken()
 r_session.headers.update(headers)
 extractReports = linkedinads_utils.extractReports(config, r_session)
 
-@dag(schedule="@hourly", catchup=False, default_args=default_args)
-# @dag(schedule=None, catchup=False, default_args=default_args)
+# @dag(schedule="@hourly", catchup=False, default_args=default_args)
+@dag(schedule=None, catchup=False, default_args=default_args)
 def linkedinads_extract():
     @task(task_id="getToken")
     def getToken():
@@ -46,28 +46,28 @@ def linkedinads_extract():
         response = extractReports.getAdAccounts()
         return response
     @task(task_id="getAdCampaignGroups", retries=0)
-    def getAdCampaignGroups(func, accountId):
-        response = extractReports.taskHandler(func, accountId)
+    def getAdCampaignGroups(accountId):
+        response = extractReports.getAdCampaignGroups(accountId)
         return response
     @task(task_id="getAdCampaigns", retries=0)
-    def getAdCampaigns(func, accountIds):
-        response = extractReports.taskHandler(func, accountIds)
+    def getAdCampaigns(accountId):
+        response = extractReports.getAdCampaigns(accountId)
         return response
     @task(task_id="getAdCreatives", retries=0)
-    def getAdCreatives(func, accountIds):
-        response = extractReports.taskHandler(func, accountIds)
+    def getAdCreatives(accountId):
+        response = extractReports.getAdCreatives(accountId)
         return response
     @task(task_id="getCreativePerformanceReport", retries=0)
-    def getCreativePerformanceReport(func, accountIds):
-        response = extractReports.taskHandler(func, accountIds)
+    def getCreativePerformanceReport(accountId):
+        response = extractReports.getCreativePerformanceReport(accountId)
         return response
 
     # token = getToken()
     adAccounts = getAdAccounts()
-    adCampaignGroups = getAdCampaignGroups('getAdCampaignGroups', adAccounts)
-    adCampaigns = getAdCampaigns('getAdCampaigns', adAccounts)
-    adCreatives = getAdCreatives('getAdCreatives', adAccounts)
-    creativePerformanceReport = getCreativePerformanceReport('getCreativePerformanceReport', adAccounts)
+    adCampaignGroups = getAdCampaignGroups.expand(accountId=adAccounts)
+    adCampaigns = getAdCampaigns.expand(accountId=adAccounts)
+    adCreatives = getAdCreatives.expand(accountId=adAccounts)
+    creativePerformanceReport = getCreativePerformanceReport.expand(accountId=adAccounts)
     
 linkedinads_extract = linkedinads_extract()
 
