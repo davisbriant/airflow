@@ -43,7 +43,7 @@ class extractReports:
             # pprint(payload)
             ddbUtils(self.config).putItem(self.tableName, self.partKey, self.userId, 'payload', payload)
             token = j['access_token']
-        headers={'Authorization': 'Bearer {}'.format(token),  "LinkedIn-Version": "202411", "Content-type": "application/json", "X-RestLi-Protocol-Version": "2.0.0"}
+        headers={'Authorization': 'Bearer {}'.format(token),  "LinkedIn-Version": "202602", "Content-type": "application/json", "X-RestLi-Protocol-Version": "2.0.0"}
         return headers
     def getAdAccounts(self, **kwargs):
         interval = str(date.today())
@@ -89,14 +89,14 @@ class extractReports:
             s3Utils(self.config).writeToS3(fcontents,'dims/accounts/{}'.format(fname))
         return accountIds
     def getAdCampaignGroups(self, accountId, **kwargs):
+        campaignGroupIds = kwargs.get('campaignGroupIds', [])
         interval = str(date.today())
         fcontents = ''
-        campaignGroupIds = kwargs.get('campaignGroupIds', [])
         pageSize = 100
         nextPageToken = kwargs.get('nextPageToken',None)
         nextPageNum = kwargs.get('nextPageNum',0)
         if nextPageToken:
-            url = 'https://api.linkedin.com/rest/adAccounts/{}/adCampaignGroups?pageSize={}&q=search&search=(status:(values:List(ACTIVE,ARCHIVED,CANCELED,DRAFT,PAUSED,PENDING_DELETION,REMOVED)))&sortOrder=DESCENDINGpageToken={}'.format(accountId, pageSize, nextPageToken)
+            url = 'https://api.linkedin.com/rest/adAccounts/{}/adCampaignGroups?pageSize={}&q=search&search=(status:(values:List(ACTIVE,ARCHIVED,CANCELED,DRAFT,PAUSED,PENDING_DELETION,REMOVED)))&sortOrder=DESCENDING&pageToken={}'.format(accountId, pageSize, nextPageToken)
         else:
             url = 'https://api.linkedin.com/rest/adAccounts/{}/adCampaignGroups?pageSize={}&q=search&search=(status:(values:List(ACTIVE,ARCHIVED,CANCELED,DRAFT,PAUSED,PENDING_DELETION,REMOVED)))&sortOrder=DESCENDING'.format(accountId, pageSize)
         print(url)
@@ -104,6 +104,7 @@ class extractReports:
         r = self.r_session.get(url)
         try:
             j = r.json()
+            print(j)
         except Exception as e:
             raise AirflowException(f"Error occurred processing API response: {e}")
         if 'errorDetailType' in j or 'code' in j:
@@ -129,10 +130,29 @@ class extractReports:
                 fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigngroups/{}'.format(fname))
         return campaignGroupIds
+
+    def taskHandler(self, taskType, accountIds):
+        if taskType == 'getAdCampaignGroups':
+            for accountId in accountIds:
+                print(accountId)
+                self.getAdCampaignGroups(accountId)
+        if taskType == 'getAdCampaigns':
+            for accountId in accountIds:
+                print(accountId)
+                self.getAdCampaigns(accountId)
+        if taskType == 'getAdCreatives':
+            for accountId in accountIds:
+                print(accountId)
+                self.getAdCreatives(accountId)
+        if taskType == 'getCreativePerformanceReport':
+            for accountId in accountIds:
+                print(accountId)
+                self.getAdCreatives(accountId)
+
     def getAdCampaigns(self, accountId, **kwargs):
+        campaignIds = kwargs.get('campaignIds', [])
         interval = str(date.today())
         fcontents = ''
-        campaignIds = kwargs.get('campaignIds', [])
         pageSize = 100
         nextPageToken = kwargs.get('nextPageToken',None)
         nextPageNum = kwargs.get('nextPageNum',0)
@@ -145,7 +165,7 @@ class extractReports:
         r = self.r_session.get(url)
         try:
             j = r.json()
-            # print(j)
+            print(j)
         except Exception as e:
             raise AirflowException(f"Error occurred processing API response: {e}")
         if 'errorDetailType' in j or 'code' in j:
@@ -172,6 +192,7 @@ class extractReports:
                 fcontents += row
             s3Utils(self.config).writeToS3(fcontents,'dims/campaigs/{}'.format(fname))
         return campaignIds
+
     def getUgcPost(self, shareUrn):
         url = 'https://api.linkedin.com/rest/posts/{}'.format(urllib.parse.quote(shareUrn))
         print(url)

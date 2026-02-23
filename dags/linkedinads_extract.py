@@ -17,7 +17,7 @@ with open(config_file_path) as config_file:
 default_args = {
     'owner': 'airflow'
     ,'depends_on_past': False
-    ,'start_date': airflow.utils.dates.days_ago(2)
+    ,'start_date': pendulum.today('UTC').add(days=-2)
     ,'email': config['alerting']['emails']
     ,'email_on_failure': True
     ,'email_on_retry': False
@@ -34,8 +34,8 @@ headers = linkedinads_utils.extractReports(config, r_session).getToken()
 r_session.headers.update(headers)
 extractReports = linkedinads_utils.extractReports(config, r_session)
 
-@dag(schedule_interval="@hourly", catchup=False, default_args=default_args)
-# @dag(schedule_interval=None, catchup=False, default_args=default_args)
+@dag(schedule="@hourly", catchup=False, default_args=default_args)
+# @dag(schedule=None, catchup=False, default_args=default_args)
 def linkedinads_extract():
     @task(task_id="getToken")
     def getToken():
@@ -46,28 +46,28 @@ def linkedinads_extract():
         response = extractReports.getAdAccounts()
         return response
     @task(task_id="getAdCampaignGroups", retries=0)
-    def getAdCampaignGroups(accountId):
-        response = extractReports.getAdCampaignGroups(accountId)
+    def getAdCampaignGroups(func, accountId):
+        response = extractReports.taskHandler(func, accountId)
         return response
     @task(task_id="getAdCampaigns", retries=0)
-    def getAdCampaigns(accountId):
-        response = extractReports.getAdCampaigns(accountId)
+    def getAdCampaigns(func, accountIds):
+        response = extractReports.taskHandler(func, accountIds)
         return response
     @task(task_id="getAdCreatives", retries=0)
-    def getAdCreatives(accountId):
-        response = extractReports.getAdCreatives(accountId)
+    def getAdCreatives(func, accountIds):
+        response = extractReports.taskHandler(func, accountIds)
         return response
     @task(task_id="getCreativePerformanceReport", retries=0)
-    def getCreativePerformanceReport(accountId):
-        response = extractReports.getCreativePerformanceReport(accountId)
+    def getCreativePerformanceReport(func, accountIds):
+        response = extractReports.taskHandler(func, accountIds)
         return response
 
     # token = getToken()
     adAccounts = getAdAccounts()
-    adCampaignGroups = getAdCampaignGroups.expand(accountId=adAccounts)
-    adCampaigns = getAdCampaigns.expand(accountId=adAccounts)
-    adCreatives = getAdCreatives.expand(accountId=adAccounts)
-    creativePerformanceReport = getCreativePerformanceReport.expand(accountId=adAccounts)
+    adCampaignGroups = getAdCampaignGroups('getAdCampaignGroups', adAccounts)
+    adCampaigns = getAdCampaigns('getAdCampaigns', adAccounts)
+    adCreatives = getAdCreatives('getAdCreatives', adAccounts)
+    creativePerformanceReport = getCreativePerformanceReport('getCreativePerformanceReport', adAccounts)
     
 linkedinads_extract = linkedinads_extract()
 
