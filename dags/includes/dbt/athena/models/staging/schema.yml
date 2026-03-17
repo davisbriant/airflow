@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: stg_googleads_matchtable_ads
+    description: one record per ad group id + ad id
+    columns:
+      - name: personid
+        description: id of the user associated with the access token
+        # tests:
+        #   - unique
+        #   - not_null
+      - name: mccid
+        description: this should be named accountid
+      - name: adid
+        description: the id of the ad (should be changed to resource id)
+      - name: json_payload
+        description: the raw response from the api formatted as json stored as string
+  - name: stg_googleads_objects_ads
+    description: one record per ad id
+    columns:
+      - name: personid
+        description: id of the user associated with the access token
+        # tests:
+        #   - unique
+        #   - not_null
+      - name: accountid
+        description: this should be named accountid
+      - name: adid
+        description: this is actually the resource id which is the adgroup id and adid separated by a hyphen
+      - name: json_payload
+        description: the raw response from the api formatted as json stored as string

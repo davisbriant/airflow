@@ -1,0 +1,9 @@
+sources:
+  - name: arkestral
+    database: awsdatacatalog
+    schema: arkestral
+    tables:
+      - name: googleads_basicperformancereport_ads
+      - name: googleads_matchtables_ads
+      - name: googleads_airflow_objects_ads
+      - name: googleads_airflow_reports_ads
