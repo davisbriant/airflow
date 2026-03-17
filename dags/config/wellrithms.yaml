@@ -1,0 +1,19 @@
+s3:
+    bucket: "wellrithms"
+    prefix: "athena"
+    
+aws:
+    region: "us-west-2"
+    keyId: "XXXXXX"
+    secretAccessKey: "XXXXXX"
+
+athena:
+    s3_staging_dir: "s3://wellrithms/athena/results/"
+    database: "AwsDataCatalog"
+    schema: "wellrithms"
+    region: "us-west-2"
+
+alerting:
+    emails: ["davisbriant@gmail.com"]
+
+
