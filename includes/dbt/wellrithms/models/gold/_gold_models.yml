@@ -1,0 +1,26 @@
+models: 
+  - name: gold_fact_claim_items_current
+    description: Fact table for current version of claim items
+    columns: 
+    - name: item_key
+      description: primary_key
+      data_tests: 
+        - not_null
+        - unique
+  - name: gold_dim_claim_codes_current
+    description: Current version of revenue code procedure descriptions by claim code
+    columns: 
+    - name: primary_key
+      description: Concat of claimc code and modifiers
+      data_tests: 
+        - not_null
+        - unique
+  - name: gold_dim_service_providers_current
+    description: Current version of service provider name and address by claim_item primary key
+    columns: 
+    - name: item_key
+      description: primary key
+      data_tests: 
+        - not_null
+        - unique
+    

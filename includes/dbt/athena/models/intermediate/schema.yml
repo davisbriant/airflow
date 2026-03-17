@@ -1,0 +1,26 @@
+models:
+  - name: fact_googleads_performancereport_ads
+    columns:
+      - name: pkey
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_googleads_performancereport_ads
+    columns:
+      - name: pkey
+        data_tests:
+          - unique
+          - not_null
+
+  - name: mart_googleads_performancereport_ads
+    arguments:
+      data_tests:
+        - dbt_expectations.expect_column_values_to_be_of_type:
+            column_type: numeric
+        - multi_model_test:
+            column_name: impressions
+            other_model: fact_googleads_performancereport_ads
+            other_column: impressions
+            id_left: adid
+            id_right: adid

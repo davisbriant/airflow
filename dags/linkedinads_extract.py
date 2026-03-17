@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime, time, timedelta
 from airflow.decorators import dag, task
 import airflow
-from include.utils import linkedinads_utils
+from includes.utils import linkedinads_utils
 import os, sys
 import yaml
 import pendulum
@@ -34,8 +34,8 @@ headers = linkedinads_utils.extractReports(config, r_session).getToken()
 r_session.headers.update(headers)
 extractReports = linkedinads_utils.extractReports(config, r_session)
 
-# @dag(schedule="@hourly", catchup=False, default_args=default_args)
-@dag(schedule=None, catchup=False, default_args=default_args)
+@dag(schedule="@hourly", catchup=False, default_args=default_args)
+# @dag(schedule=None, catchup=False, default_args=default_args)
 def linkedinads_extract():
     @task(task_id="getToken")
     def getToken():
