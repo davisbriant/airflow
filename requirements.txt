@@ -1,0 +1,5 @@
+simplejson==3.20.2
+astronomer-cosmos
+awswrangler
+pandas
+apache-airflow-providers-amazon
