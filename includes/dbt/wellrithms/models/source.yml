@@ -1,6 +1,0 @@
-sources:
-  - name: wellrithms_testdata_json
-    database: awsdatacatalog
-    schema: wellrithms
-    tables:
-      - name: sources-test_datajson
